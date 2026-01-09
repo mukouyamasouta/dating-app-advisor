@@ -45,6 +45,23 @@
                         <textarea id="myBio" placeholder="自己紹介・特徴（例：趣味、性格など）" class="input-field textarea"></textarea>
                     </div>
 
+                    <!-- Screenshot Upload Area -->
+                    <div class="screenshot-upload-section">
+                        <h4>📷 スクリーンショットから自動読み取り</h4>
+                        <p class="upload-hint">プロフィール画面のスクショをドロップまたはクリック（複数枚OK）</p>
+                        <div class="screenshot-dropzone" id="myScreenshotDropzone">
+                            <div class="dropzone-content">
+                                <span class="dropzone-icon">📱</span>
+                                <span class="dropzone-text">スクショをここにドロップ</span>
+                            </div>
+                            <input type="file" id="myScreenshotInput" accept="image/*" multiple hidden>
+                        </div>
+                        <div class="screenshot-preview-list" id="myScreenshotPreviews"></div>
+                        <button type="button" id="analyzeMyScreenshotsBtn" class="btn-secondary" style="display: none;">
+                            🔍 スクショを解析して情報を抽出
+                        </button>
+                    </div>
+
                     <button id="saveProfileBtn" class="btn-primary">💾 プロフィールを保存してはじめる</button>
                 </div>
             </div>
@@ -97,6 +114,24 @@
                     <div class="form-group">
                         <textarea id="girlHistory" placeholder="これまでの会話の要約（例：趣味の話で盛り上がった、週末の予定を聞いたなど）"
                             class="input-field textarea small"></textarea>
+                    </div>
+
+                    <!-- Screenshot Upload Area for Girl -->
+                    <div class="screenshot-upload-section">
+                        <h4>📷 スクリーンショットから自動読み取り</h4>
+                        <p class="upload-hint">相手のプロフィールやトーク画面のスクショ（複数枚OK）</p>
+                        <div class="screenshot-dropzone" id="girlScreenshotDropzone">
+                            <div class="dropzone-content">
+                                <span class="dropzone-icon">📱</span>
+                                <span class="dropzone-text">スクショをここにドロップ</span>
+                            </div>
+                            <input type="file" id="girlScreenshotInput" accept="image/*" multiple hidden>
+                        </div>
+                        <div class="screenshot-preview-list" id="girlScreenshotPreviews"></div>
+                        <button type="button" id="analyzeGirlScreenshotsBtn" class="btn-secondary"
+                            style="display: none;">
+                            🔍 スクショを解析して情報を抽出
+                        </button>
                     </div>
                 </div>
 

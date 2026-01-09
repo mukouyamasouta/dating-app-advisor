@@ -66,6 +66,16 @@ function initElements() {
     elements.suggestionsList = document.getElementById('suggestionsList');
     elements.strategyAdvice = document.getElementById('strategyAdvice');
     elements.adviceText = document.getElementById('adviceText');
+
+    // Screenshot elements
+    elements.myScreenshotDropzone = document.getElementById('myScreenshotDropzone');
+    elements.myScreenshotInput = document.getElementById('myScreenshotInput');
+    elements.myScreenshotPreviews = document.getElementById('myScreenshotPreviews');
+    elements.analyzeMyScreenshotsBtn = document.getElementById('analyzeMyScreenshotsBtn');
+    elements.girlScreenshotDropzone = document.getElementById('girlScreenshotDropzone');
+    elements.girlScreenshotInput = document.getElementById('girlScreenshotInput');
+    elements.girlScreenshotPreviews = document.getElementById('girlScreenshotPreviews');
+    elements.analyzeGirlScreenshotsBtn = document.getElementById('analyzeGirlScreenshotsBtn');
 }
 
 // Initialize Event Listeners
@@ -95,6 +105,12 @@ function initEventListeners() {
 
     // Generate responses
     elements.generateBtn.addEventListener('click', generateResponses);
+
+    // Screenshot dropzone events - My Profile
+    setupDropzone(elements.myScreenshotDropzone, elements.myScreenshotInput, elements.myScreenshotPreviews, elements.analyzeMyScreenshotsBtn, 'my');
+
+    // Screenshot dropzone events - Girl
+    setupDropzone(elements.girlScreenshotDropzone, elements.girlScreenshotInput, elements.girlScreenshotPreviews, elements.analyzeGirlScreenshotsBtn, 'girl');
 }
 
 // Load data from localStorage
@@ -696,4 +712,175 @@ function showExtractedNotice(container, message) {
     setTimeout(() => {
         notice.remove();
     }, 3000);
+}
+
+// ============================================
+// Multiple Screenshot Upload & Analysis
+// ============================================
+
+// Temporary storage for screenshots
+const screenshotData = {
+    my: [],
+    girl: []
+};
+
+// Setup dropzone events
+function setupDropzone(dropzone, input, previewContainer, analyzeBtn, type) {
+    if (!dropzone) return;
+
+    // Click to open file dialog
+    dropzone.addEventListener('click', () => input.click());
+
+    // Drag and drop events
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        handleScreenshotFiles(e.dataTransfer.files, previewContainer, analyzeBtn, type);
+    });
+
+    // File input change
+    input.addEventListener('change', (e) => {
+        handleScreenshotFiles(e.target.files, previewContainer, analyzeBtn, type);
+    });
+
+    // Analyze button click
+    analyzeBtn.addEventListener('click', () => {
+        analyzeAllScreenshots(type, previewContainer, analyzeBtn);
+    });
+}
+
+// Handle selected screenshot files
+function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) {
+    Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgData = e.target.result;
+            screenshotData[type].push(imgData);
+            addScreenshotPreview(imgData, previewContainer, type);
+
+            // Show analyze button
+            analyzeBtn.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Add screenshot preview
+function addScreenshotPreview(imgData, container, type) {
+    const index = screenshotData[type].length - 1;
+    const item = document.createElement('div');
+    item.className = 'screenshot-preview-item';
+    item.dataset.index = index;
+    item.innerHTML = `
+        <img src="${imgData}" alt="Screenshot">
+        <button class="remove-btn" onclick="removeScreenshot(${index}, '${type}', this.parentElement)">×</button>
+    `;
+    container.appendChild(item);
+}
+
+// Remove screenshot
+window.removeScreenshot = function (index, type, element) {
+    screenshotData[type][index] = null; // Mark as removed
+    element.remove();
+
+    // Hide analyze button if no screenshots left
+    const remaining = screenshotData[type].filter(s => s !== null).length;
+    const analyzeBtn = type === 'my' ? elements.analyzeMyScreenshotsBtn : elements.analyzeGirlScreenshotsBtn;
+    if (remaining === 0) {
+        analyzeBtn.style.display = 'none';
+    }
+};
+
+// Analyze all screenshots
+async function analyzeAllScreenshots(type, previewContainer, analyzeBtn) {
+    const screenshots = screenshotData[type].filter(s => s !== null);
+    if (screenshots.length === 0) return;
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = '解析中...';
+
+    // Mark all previews as analyzing
+    const items = previewContainer.querySelectorAll('.screenshot-preview-item');
+    items.forEach(item => item.classList.add('analyzing'));
+
+    let combinedInfo = {
+        name: null,
+        age: null,
+        job: null,
+        bio: '',
+        features: '',
+        history: ''
+    };
+
+    // Analyze each screenshot
+    for (let i = 0; i < screenshots.length; i++) {
+        try {
+            const info = await analyzeProfileImage(screenshots[i], type);
+            if (info) {
+                // Merge info (first non-null value wins for single fields)
+                if (info.name && !combinedInfo.name) combinedInfo.name = info.name;
+                if (info.age && !combinedInfo.age) combinedInfo.age = info.age;
+                if (info.job && !combinedInfo.job) combinedInfo.job = info.job;
+
+                // Append for text fields
+                if (info.bio) combinedInfo.bio += (combinedInfo.bio ? '\n' : '') + info.bio;
+                if (info.features) combinedInfo.features += (combinedInfo.features ? '\n' : '') + info.features;
+                if (info.history) combinedInfo.history += (combinedInfo.history ? '\n' : '') + info.history;
+            }
+
+            // Mark this item as done
+            if (items[i]) {
+                items[i].classList.remove('analyzing');
+                items[i].classList.add('done');
+            }
+        } catch (error) {
+            console.error(`Error analyzing screenshot ${i}:`, error);
+            if (items[i]) {
+                items[i].classList.remove('analyzing');
+            }
+        }
+    }
+
+    // Apply extracted info to form
+    if (type === 'my') {
+        if (combinedInfo.name && !elements.myName.value) elements.myName.value = combinedInfo.name;
+        if (combinedInfo.age && !elements.myAge.value) elements.myAge.value = combinedInfo.age;
+        if (combinedInfo.job && !elements.myJob.value) elements.myJob.value = combinedInfo.job;
+        if (combinedInfo.bio) {
+            elements.myBio.value = (elements.myBio.value ? elements.myBio.value + '\n' : '') + combinedInfo.bio;
+        }
+    } else {
+        if (combinedInfo.name && !elements.girlName.value) elements.girlName.value = combinedInfo.name;
+        if (combinedInfo.age && !elements.girlAge.value) elements.girlAge.value = combinedInfo.age;
+        if (combinedInfo.features) {
+            elements.girlFeatures.value = (elements.girlFeatures.value ? elements.girlFeatures.value + '\n' : '') + combinedInfo.features;
+        }
+        if (combinedInfo.history) {
+            elements.girlHistory.value = (elements.girlHistory.value ? elements.girlHistory.value + '\n' : '') + combinedInfo.history;
+        }
+        saveCurrentGirl();
+    }
+
+    // Reset button
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = '🔍 スクショを解析して情報を抽出';
+
+    // Show success message
+    alert('スクリーンショットの解析が完了しました！\n抽出した情報が自動入力されました。');
+
+    // Clear screenshots
+    screenshotData[type] = [];
+    previewContainer.innerHTML = '';
+    analyzeBtn.style.display = 'none';
 }
