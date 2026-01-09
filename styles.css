@@ -868,6 +868,33 @@ body {
     background: var(--error);
 }
 
+.screenshot-preview-item.error {
+    border-color: var(--error);
+}
+
+.preview-status {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.screenshot-preview-item.done .preview-status {
+    background: var(--success);
+}
+
+.screenshot-preview-item.error .preview-status {
+    background: var(--error);
+}
+
 .screenshot-preview-item.analyzing::after {
     content: '';
     position: absolute;

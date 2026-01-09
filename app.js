@@ -1000,7 +1000,7 @@ function setupDropzone(dropzone, input, previewContainer, analyzeBtn, type) {
     });
 }
 
-// Handle selected screenshot files - Auto analyze immediately
+// Handle selected screenshot files - Auto analyze immediately with retry
 async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) {
     for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
@@ -1009,22 +1009,60 @@ async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) 
         screenshotData[type].push(imgData);
         const previewItem = addScreenshotPreview(imgData, previewContainer, type);
 
-        // Auto-analyze immediately
+        // Auto-analyze immediately with retry
         previewItem.classList.add('analyzing');
+        showStatusMessage(previewItem, '解析中...');
 
-        try {
-            const info = await analyzeProfileImage(imgData, type);
-            if (info) {
-                // Auto-fill form fields immediately
-                autoFillFormFields(info, type, imgData);
-                previewItem.classList.remove('analyzing');
-                previewItem.classList.add('done');
+        let success = false;
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (!success && retryCount < maxRetries) {
+            try {
+                // Wait before retry (exponential backoff)
+                if (retryCount > 0) {
+                    const waitTime = Math.pow(2, retryCount) * 1000;
+                    showStatusMessage(previewItem, `リトライ中... (${retryCount}/${maxRetries})`);
+                    await sleep(waitTime);
+                }
+
+                const info = await analyzeProfileImage(imgData, type);
+                if (info) {
+                    // Auto-fill form fields immediately
+                    autoFillFormFields(info, type, imgData);
+                    previewItem.classList.remove('analyzing');
+                    previewItem.classList.add('done');
+                    showStatusMessage(previewItem, '✓ 抽出完了！');
+                    success = true;
+                }
+            } catch (error) {
+                console.error(`Auto-analyze error (attempt ${retryCount + 1}):`, error);
+                retryCount++;
+
+                if (retryCount >= maxRetries) {
+                    previewItem.classList.remove('analyzing');
+                    previewItem.classList.add('error');
+                    showStatusMessage(previewItem, 'API制限中 - 後で再試行');
+                }
             }
-        } catch (error) {
-            console.error('Auto-analyze error:', error);
-            previewItem.classList.remove('analyzing');
         }
     }
+}
+
+// Sleep utility
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Show status message on preview item
+function showStatusMessage(item, message) {
+    let statusEl = item.querySelector('.preview-status');
+    if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.className = 'preview-status';
+        item.appendChild(statusEl);
+    }
+    statusEl.textContent = message;
 }
 
 // Read file as data URL (Promise wrapper)
