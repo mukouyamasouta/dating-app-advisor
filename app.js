@@ -125,13 +125,41 @@ function saveToStorage() {
 }
 
 // Handle my photo upload
-function handleMyPhotoUpload(e) {
+async function handleMyPhotoUpload(e) {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             const imgData = event.target.result;
             elements.myImagePreview.innerHTML = `<img src="${imgData}" alt="Profile">`;
+
+            // Show analyzing status
+            showAnalyzingStatus(elements.myImagePreview);
+
+            // Analyze image with Gemini Vision
+            try {
+                const extractedInfo = await analyzeProfileImage(imgData, 'my');
+                if (extractedInfo) {
+                    // Auto-fill extracted info
+                    if (extractedInfo.name && !elements.myName.value) {
+                        elements.myName.value = extractedInfo.name;
+                    }
+                    if (extractedInfo.age && !elements.myAge.value) {
+                        elements.myAge.value = extractedInfo.age;
+                    }
+                    if (extractedInfo.job && !elements.myJob.value) {
+                        elements.myJob.value = extractedInfo.job;
+                    }
+                    if (extractedInfo.bio) {
+                        elements.myBio.value = (elements.myBio.value ? elements.myBio.value + '\n' : '') + extractedInfo.bio;
+                    }
+                    showExtractedNotice(elements.myImagePreview, '情報を抽出しました');
+                }
+            } catch (error) {
+                console.error('Image analysis error:', error);
+                hideAnalyzingStatus(elements.myImagePreview);
+            }
+
             if (state.myProfile) {
                 state.myProfile.photo = imgData;
             }
@@ -141,16 +169,46 @@ function handleMyPhotoUpload(e) {
 }
 
 // Handle girl photo upload
-function handleGirlPhotoUpload(e) {
+async function handleGirlPhotoUpload(e) {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             const imgData = event.target.result;
             elements.girlImagePreview.innerHTML = `<img src="${imgData}" alt="Girl">`;
             state.girls[state.activeTab].photo = imgData;
             saveToStorage();
             renderTabs();
+
+            // Show analyzing status
+            showAnalyzingStatus(elements.girlImagePreview);
+
+            // Analyze image with Gemini Vision
+            try {
+                const extractedInfo = await analyzeProfileImage(imgData, 'girl');
+                if (extractedInfo) {
+                    // Auto-fill extracted info
+                    if (extractedInfo.name && !elements.girlName.value) {
+                        elements.girlName.value = extractedInfo.name;
+                    }
+                    if (extractedInfo.age && !elements.girlAge.value) {
+                        elements.girlAge.value = extractedInfo.age;
+                    }
+                    if (extractedInfo.features) {
+                        elements.girlFeatures.value = (elements.girlFeatures.value ? elements.girlFeatures.value + '\n' : '') + extractedInfo.features;
+                    }
+                    if (extractedInfo.history) {
+                        elements.girlHistory.value = (elements.girlHistory.value ? elements.girlHistory.value + '\n' : '') + extractedInfo.history;
+                    }
+
+                    // Save the updated data
+                    saveCurrentGirl();
+                    showExtractedNotice(elements.girlImagePreview, '情報を抽出しました');
+                }
+            } catch (error) {
+                console.error('Image analysis error:', error);
+                hideAnalyzingStatus(elements.girlImagePreview);
+            }
         };
         reader.readAsDataURL(file);
     }
@@ -529,4 +587,113 @@ function updateUI() {
         updateMyProfileDisplay();
     }
     loadCurrentGirl();
+}
+
+// ============================================
+// Image Analysis with Gemini Vision API
+// ============================================
+
+// Analyze profile image using Gemini Vision
+async function analyzeProfileImage(imageData, type) {
+    // Extract base64 data from data URL
+    const base64Data = imageData.split(',')[1];
+    const mimeType = imageData.split(';')[0].split(':')[1];
+
+    const prompt = type === 'my'
+        ? `この画像はマッチングアプリの自分のプロフィールのスクリーンショットです。
+画像から読み取れる情報を可能な限り抽出してください。
+
+以下のJSON形式で出力してください（読み取れない項目はnullにしてください）：
+{
+    "name": "名前（ニックネーム）",
+    "age": 年齢（数字のみ）,
+    "job": "職業",
+    "bio": "自己紹介文や趣味、特徴など読み取れる情報全て"
+}`
+        : `この画像はマッチングアプリの相手のプロフィールまたはトーク画面のスクリーンショットです。
+画像から読み取れる情報を可能な限り抽出してください。
+
+以下のJSON形式で出力してください（読み取れない項目はnullにしてください）：
+{
+    "name": "名前（ニックネーム）",
+    "age": 年齢（数字のみ）,
+    "features": "見た目の特徴、趣味、職業、性格など読み取れる情報全て",
+    "history": "トーク内容が含まれていれば、会話の要約"
+}`;
+
+    const requestBody = {
+        contents: [{
+            parts: [
+                {
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                    }
+                },
+                {
+                    text: prompt
+                }
+            ]
+        }],
+        generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1024
+        }
+    };
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates[0].content.parts[0].text;
+
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+    }
+
+    return null;
+}
+
+// Show analyzing status overlay
+function showAnalyzingStatus(container) {
+    const overlay = document.createElement('div');
+    overlay.className = 'analyzing-overlay';
+    overlay.innerHTML = `
+        <div class="analyzing-spinner"></div>
+        <span>解析中...</span>
+    `;
+    container.style.position = 'relative';
+    container.appendChild(overlay);
+}
+
+// Hide analyzing status
+function hideAnalyzingStatus(container) {
+    const overlay = container.querySelector('.analyzing-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Show extracted notice
+function showExtractedNotice(container, message) {
+    hideAnalyzingStatus(container);
+    const notice = document.createElement('div');
+    notice.className = 'extracted-notice';
+    notice.innerHTML = `<span>✓ ${message}</span>`;
+    container.appendChild(notice);
+
+    setTimeout(() => {
+        notice.remove();
+    }, 3000);
 }
