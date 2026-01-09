@@ -828,32 +828,55 @@ function updateUI() {
 // Image Analysis with Gemini Vision API
 // ============================================
 
-// Analyze profile image using Gemini Vision
+// Analyze profile image using Gemini Vision (Enhanced)
 async function analyzeProfileImage(imageData, type) {
     // Extract base64 data from data URL
     const base64Data = imageData.split(',')[1];
     const mimeType = imageData.split(';')[0].split(':')[1];
 
     const prompt = type === 'my'
-        ? `この画像はマッチングアプリの自分のプロフィールのスクリーンショットです。
-画像から読み取れる情報を可能な限り抽出してください。
+        ? `この画像はマッチングアプリの自分のプロフィールまたはスクリーンショットです。
+画像から読み取れる情報を可能な限り詳細に抽出してください。
+
+【抽出のポイント】
+- 名前: 「ゆう」「そうた」「れん」などのニックネームや名前っぽい文字列を探す
+- 年齢: 数字で書かれている年齢（例：25歳、26）
+- 職業: 仕事や職種に関する記述
+- 趣味: サッカー、映画、旅行、音楽など趣味と思われるキーワード
+- 特徴: 性格、好きなこと、休日の過ごし方など
+- 顔写真: 画像の中に人物の顔写真が含まれているかどうか（プロフィール写真として使えそうな部分）
 
 以下のJSON形式で出力してください（読み取れない項目はnullにしてください）：
 {
     "name": "名前（ニックネーム）",
-    "age": 年齢（数字のみ）,
+    "age": 年齢（数字のみ、なければnull）,
     "job": "職業",
-    "bio": "自己紹介文や趣味、特徴など読み取れる情報全て"
+    "hobbies": "趣味（複数あればカンマ区切り）",
+    "bio": "自己紹介文や特徴など読み取れる情報全て",
+    "hasFacePhoto": true/false（人物の顔写真が含まれているかどうか）,
+    "facePhotoArea": "顔写真がある場合、その位置の説明（例：画面上部にプロフィール写真あり）"
 }`
         : `この画像はマッチングアプリの相手のプロフィールまたはトーク画面のスクリーンショットです。
-画像から読み取れる情報を可能な限り抽出してください。
+画像から読み取れる情報を可能な限り詳細に抽出してください。
+
+【抽出のポイント】
+- 名前: 「あやか」「みゆ」「ゆい」などのニックネームや名前っぽい文字列を探す
+- 年齢: 数字で書かれている年齢（例：23歳、24）
+- 趣味: カフェ、旅行、料理、ヨガなど趣味と思われるキーワード
+- 職業: 仕事や職種に関する記述（看護師、OL、美容師など）
+- 特徴: 見た目、性格、好きなタイプなど
+- トーク内容: LINEやメッセージ画面の場合、会話の内容を要約
+- 顔写真: 画像の中に人物の顔写真が含まれているかどうか
 
 以下のJSON形式で出力してください（読み取れない項目はnullにしてください）：
 {
     "name": "名前（ニックネーム）",
-    "age": 年齢（数字のみ）,
-    "features": "見た目の特徴、趣味、職業、性格など読み取れる情報全て",
-    "history": "トーク内容が含まれていれば、会話の要約"
+    "age": 年齢（数字のみ、なければnull）,
+    "job": "職業",
+    "hobbies": "趣味（複数あればカンマ区切り）",
+    "features": "見た目の特徴、性格、好きなタイプなど読み取れる情報全て",
+    "history": "トーク内容が含まれていれば、会話の要約",
+    "hasFacePhoto": true/false（人物の顔写真が含まれているかどうか）
 }`;
 
     const requestBody = {
@@ -872,7 +895,7 @@ async function analyzeProfileImage(imageData, type) {
         }],
         generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 1024
+            maxOutputTokens: 1500
         }
     };
 
@@ -977,22 +1000,106 @@ function setupDropzone(dropzone, input, previewContainer, analyzeBtn, type) {
     });
 }
 
-// Handle selected screenshot files
-function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) {
-    Array.from(files).forEach(file => {
-        if (!file.type.startsWith('image/')) return;
+// Handle selected screenshot files - Auto analyze immediately
+async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) {
+    for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) continue;
 
+        const imgData = await readFileAsDataURL(file);
+        screenshotData[type].push(imgData);
+        const previewItem = addScreenshotPreview(imgData, previewContainer, type);
+
+        // Auto-analyze immediately
+        previewItem.classList.add('analyzing');
+
+        try {
+            const info = await analyzeProfileImage(imgData, type);
+            if (info) {
+                // Auto-fill form fields immediately
+                autoFillFormFields(info, type, imgData);
+                previewItem.classList.remove('analyzing');
+                previewItem.classList.add('done');
+            }
+        } catch (error) {
+            console.error('Auto-analyze error:', error);
+            previewItem.classList.remove('analyzing');
+        }
+    }
+}
+
+// Read file as data URL (Promise wrapper)
+function readFileAsDataURL(file) {
+    return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            const imgData = e.target.result;
-            screenshotData[type].push(imgData);
-            addScreenshotPreview(imgData, previewContainer, type);
-
-            // Show analyze button
-            analyzeBtn.style.display = 'block';
-        };
+        reader.onload = (e) => resolve(e.target.result);
         reader.readAsDataURL(file);
     });
+}
+
+// Auto-fill form fields based on extracted info
+function autoFillFormFields(info, type, imgData) {
+    if (type === 'my') {
+        // Auto-fill my profile fields
+        if (info.name && !elements.myName.value) {
+            elements.myName.value = info.name;
+        }
+        if (info.age && !elements.myAge.value) {
+            elements.myAge.value = info.age;
+        }
+        if (info.job && !elements.myJob.value) {
+            elements.myJob.value = info.job;
+        }
+
+        // Build bio from hobbies and other info
+        let bioText = '';
+        if (info.hobbies) bioText += `趣味: ${info.hobbies}\n`;
+        if (info.bio) bioText += info.bio;
+        if (bioText && !elements.myBio.value) {
+            elements.myBio.value = bioText.trim();
+        } else if (bioText) {
+            elements.myBio.value = (elements.myBio.value + '\n' + bioText).trim();
+        }
+
+        // Set face photo as profile icon
+        if (info.hasFacePhoto) {
+            elements.myImagePreview.innerHTML = `<img src="${imgData}" alt="Profile">`;
+            if (state.myProfile) {
+                state.myProfile.photo = imgData;
+            }
+        }
+
+    } else {
+        // Auto-fill girl profile fields
+        if (info.name && !elements.girlName.value) {
+            elements.girlName.value = info.name;
+        }
+        if (info.age && !elements.girlAge.value) {
+            elements.girlAge.value = info.age;
+        }
+
+        // Build features from job, hobbies, and other info
+        let featuresText = '';
+        if (info.job) featuresText += `職業: ${info.job}\n`;
+        if (info.hobbies) featuresText += `趣味: ${info.hobbies}\n`;
+        if (info.features) featuresText += info.features;
+        if (featuresText) {
+            elements.girlFeatures.value = (elements.girlFeatures.value ? elements.girlFeatures.value + '\n' : '') + featuresText.trim();
+        }
+
+        // Add conversation history
+        if (info.history) {
+            elements.girlHistory.value = (elements.girlHistory.value ? elements.girlHistory.value + '\n' : '') + info.history;
+        }
+
+        // Set face photo as girl's profile icon
+        if (info.hasFacePhoto && !state.girls[state.activeTab].photo) {
+            elements.girlImagePreview.innerHTML = `<img src="${imgData}" alt="Girl">`;
+            state.girls[state.activeTab].photo = imgData;
+        }
+
+        // Save updated girl data
+        saveCurrentGirl();
+    }
 }
 
 // Add screenshot preview
@@ -1006,6 +1113,7 @@ function addScreenshotPreview(imgData, container, type) {
         <button class="remove-btn" onclick="removeScreenshot(${index}, '${type}', this.parentElement)">×</button>
     `;
     container.appendChild(item);
+    return item;  // Return the element for status tracking
 }
 
 // Remove screenshot
