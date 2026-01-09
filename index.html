@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メッセージアドバイザー</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>💬 メッセージアドバイザー</h1>
+            <p class="subtitle">マッチングアプリ返信サポート</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Setup Modal (First Time) -->
+            <div id="setupModal" class="modal">
+                <div class="modal-content glass-card">
+                    <h2>🎯 はじめましょう</h2>
+                    <p>まずはあなたのプロフィールを設定してください</p>
+
+                    <div class="profile-upload-area" id="myProfileUpload">
+                        <div class="image-preview" id="myImagePreview">
+                            <span class="upload-icon">📸</span>
+                            <span class="upload-text">写真をアップロード</span>
+                        </div>
+                        <input type="file" id="myPhotoInput" accept="image/*" hidden>
+                    </div>
+
+                    <div class="form-group">
+                        <input type="text" id="myName" placeholder="あなたの名前" class="input-field">
+                    </div>
+                    <div class="form-row">
+                        <input type="number" id="myAge" placeholder="年齢" class="input-field small">
+                        <input type="text" id="myJob" placeholder="職業" class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <textarea id="myBio" placeholder="自己紹介・特徴（例：趣味、性格など）" class="input-field textarea"></textarea>
+                    </div>
+
+                    <button id="saveProfileBtn" class="btn-primary">💾 プロフィールを保存してはじめる</button>
+                </div>
+            </div>
+
+            <!-- Left Panel: My Profile -->
+            <aside class="profile-panel glass-card">
+                <div class="panel-header">
+                    <h3>👤 あなたのプロフィール</h3>
+                    <button id="editProfileBtn" class="btn-icon" title="編集">✏️</button>
+                </div>
+                <div class="my-profile-display">
+                    <div class="profile-image" id="myProfileImage">
+                        <span>📷</span>
+                    </div>
+                    <div class="profile-info">
+                        <h4 id="displayMyName">未設定</h4>
+                        <p id="displayMyDetails">-</p>
+                        <p id="displayMyBio" class="bio-text">-</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center: Main Chat Area -->
+            <section class="chat-section">
+                <!-- Girl Tabs -->
+                <div class="tabs-container">
+                    <div class="tabs-scroll" id="girlTabs">
+                        <!-- Tabs will be dynamically generated -->
+                    </div>
+                    <button id="addTabBtn" class="btn-add-tab" title="タブを追加">+</button>
+                </div>
+
+                <!-- Girl Profile Panel -->
+                <div class="girl-profile-panel glass-card">
+                    <div class="girl-profile-header">
+                        <div class="girl-image-upload" id="girlImageUpload">
+                            <div class="girl-image-preview" id="girlImagePreview">
+                                <span class="upload-icon">👩</span>
+                            </div>
+                            <input type="file" id="girlPhotoInput" accept="image/*" hidden>
+                        </div>
+                        <div class="girl-info-inputs">
+                            <input type="text" id="girlName" placeholder="相手の名前" class="input-field">
+                            <div class="form-row">
+                                <input type="number" id="girlAge" placeholder="年齢" class="input-field small">
+                                <input type="text" id="girlFeatures" placeholder="特徴・メモ" class="input-field">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <textarea id="girlHistory" placeholder="これまでの会話の要約（例：趣味の話で盛り上がった、週末の予定を聞いたなど）"
+                            class="input-field textarea small"></textarea>
+                    </div>
+                </div>
+
+                <!-- Message Input -->
+                <div class="message-input-section glass-card">
+                    <h4>📩 相手からのメッセージ</h4>
+                    <textarea id="receivedMessage" placeholder="相手から受け取ったメッセージを入力..."
+                        class="input-field textarea"></textarea>
+                    <button id="generateBtn" class="btn-primary btn-generate">
+                        <span class="btn-icon">✨</span>
+                        返信候補を生成
+                    </button>
+                </div>
+
+                <!-- Response Suggestions -->
+                <div class="suggestions-section" id="suggestionsSection">
+                    <h4>💡 おすすめ返信</h4>
+                    <div class="loading" id="loadingIndicator" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>考え中...</p>
+                    </div>
+                    <div class="suggestions-list" id="suggestionsList">
+                        <!-- Suggestions will be generated here -->
+                    </div>
+                    <div class="strategy-advice glass-card" id="strategyAdvice" style="display: none;">
+                        <h5>📚 戦略アドバイス</h5>
+                        <p id="adviceText"></p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="knowledge_base.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
