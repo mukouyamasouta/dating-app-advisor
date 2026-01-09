@@ -135,6 +135,21 @@
                     </div>
                 </div>
 
+                <!-- First Message Generator -->
+                <div class="first-message-section glass-card">
+                    <h4>🎯 マッチ後の初手メッセージを考える</h4>
+                    <p class="section-hint">相手の情報を入力した後、最初に送るメッセージを生成します</p>
+                    <button id="generateFirstMsgBtn" class="btn-primary btn-first-msg">
+                        <span class="btn-icon">💌</span>
+                        初手メッセージを生成
+                    </button>
+                    <div id="firstMessageResult" class="first-message-result" style="display: none;">
+                        <h5>📝 おすすめ初手メッセージ</h5>
+                        <div id="firstMessageText" class="first-message-text"></div>
+                        <button class="btn-copy-first" onclick="copyFirstMessage()">📋 コピー</button>
+                    </div>
+                </div>
+
                 <!-- Message Input -->
                 <div class="message-input-section glass-card">
                     <h4>📩 相手からのメッセージ</h4>
@@ -153,6 +168,17 @@
                         <div class="spinner"></div>
                         <p>考え中...</p>
                     </div>
+
+                    <!-- Category Tabs -->
+                    <div class="suggestion-categories" id="suggestionCategories" style="display: none;">
+                        <button class="category-tab active" data-category="all">すべて</button>
+                        <button class="category-tab" data-category="pdf1">PDF1基盤</button>
+                        <button class="category-tab" data-category="pdf2">PDF2基盤</button>
+                        <button class="category-tab" data-category="types">タイプ別</button>
+                        <button class="category-tab" data-category="line">LINE例</button>
+                        <button class="category-tab" data-category="combined">統合</button>
+                    </div>
+
                     <div class="suggestions-list" id="suggestionsList">
                         <!-- Suggestions will be generated here -->
                     </div>

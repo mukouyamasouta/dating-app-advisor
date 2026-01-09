@@ -76,6 +76,14 @@ function initElements() {
     elements.girlScreenshotInput = document.getElementById('girlScreenshotInput');
     elements.girlScreenshotPreviews = document.getElementById('girlScreenshotPreviews');
     elements.analyzeGirlScreenshotsBtn = document.getElementById('analyzeGirlScreenshotsBtn');
+
+    // First message elements
+    elements.generateFirstMsgBtn = document.getElementById('generateFirstMsgBtn');
+    elements.firstMessageResult = document.getElementById('firstMessageResult');
+    elements.firstMessageText = document.getElementById('firstMessageText');
+
+    // Category tabs
+    elements.suggestionCategories = document.getElementById('suggestionCategories');
 }
 
 // Initialize Event Listeners
@@ -105,6 +113,14 @@ function initEventListeners() {
 
     // Generate responses
     elements.generateBtn.addEventListener('click', generateResponses);
+
+    // First message generator
+    elements.generateFirstMsgBtn.addEventListener('click', generateFirstMessage);
+
+    // Category tabs
+    document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.addEventListener('click', () => filterSuggestionsByCategory(tab.dataset.category));
+    });
 
     // Screenshot dropzone events - My Profile
     setupDropzone(elements.myScreenshotDropzone, elements.myScreenshotInput, elements.myScreenshotPreviews, elements.analyzeMyScreenshotsBtn, 'my');
@@ -464,17 +480,54 @@ function buildContext(myProfile, girl, message) {
     return context;
 }
 
-// Call Gemini API
+// Call Gemini API with expanded response format
 async function callGeminiAPI(userContext) {
+    const expandedPrompt = `あなたはマッチングアプリの返信アドバイザーです。以下の情報に基づいて、11種類の返信候補を生成してください。
+
+【返信を生成する際の基本方針】
+- 短文（1〜2行）が基本だが、タイプによっては長めでもOK
+- 絵文字は控えめに使用（1〜2個程度）
+- 相手の名前は使わないか、使っても1回まで
+- 追撃LINE禁止：返信がなければ放置
+
+【生成する11種類の返信】
+1. PDF1基盤（マッチングアプリと恋愛におけるメッセージ戦略）: 非モテLINEを避け、あっさり戦略を意識した返信
+2. PDF2基盤（モテ戦略：ようしゅチャンネルの戦術）: Push & Pull、緩急、高価値男性像を意識した返信
+3. 共感型: 相手の感情に寄り添う優しい返信
+4. ウィット型: 軽いノリや笑いを誘う返信
+5. クロージング型: 次のアクション（デートや連絡先交換）に繋げる返信
+6. LINE例1: ホストの会話テクニックを参考にしたカジュアルな返信
+7. LINE例2: 相手を持ち上げつつも余裕を見せる返信
+8. LINE例3: 短くてもインパクトのある返信
+9. 統合版: 全ての要素を最もバランス良く組み合わせたベストな返信
+
+以下のJSON形式で出力してください:
+{
+    "responses": [
+        {"type": "pdf1", "label": "PDF1基盤", "text": "返信内容"},
+        {"type": "pdf2", "label": "PDF2基盤", "text": "返信内容"},
+        {"type": "empathy", "label": "共感型", "text": "返信内容"},
+        {"type": "wit", "label": "ウィット型", "text": "返信内容"},
+        {"type": "closing", "label": "クロージング型", "text": "返信内容"},
+        {"type": "line1", "label": "LINE例1", "text": "返信内容"},
+        {"type": "line2", "label": "LINE例2", "text": "返信内容"},
+        {"type": "line3", "label": "LINE例3", "text": "返信内容"},
+        {"type": "combined", "label": "統合ベスト", "text": "返信内容"}
+    ],
+    "advice": "この状況での戦略アドバイス（2〜3文）"
+}
+
+${userContext}`;
+
     const requestBody = {
         contents: [{
             parts: [{
-                text: `${window.SYSTEM_PROMPT}\n\n${userContext}`
+                text: expandedPrompt
             }]
         }],
         generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 1024
+            temperature: 0.85,
+            maxOutputTokens: 2048
         }
     };
 
@@ -502,15 +555,157 @@ async function callGeminiAPI(userContext) {
     throw new Error('Invalid response format');
 }
 
+// Generate first message for new match
+async function generateFirstMessage() {
+    const girl = state.girls[state.activeTab];
+
+    if (!girl.name && !girl.features) {
+        alert('相手の情報を入力してください（名前や特徴など）');
+        return;
+    }
+
+    elements.generateFirstMsgBtn.disabled = true;
+    elements.generateFirstMsgBtn.textContent = '生成中...';
+    elements.firstMessageResult.style.display = 'none';
+
+    try {
+        const myProfile = state.myProfile || {};
+        const prompt = buildFirstMessagePrompt(myProfile, girl);
+
+        const requestBody = {
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                temperature: 0.9,
+                maxOutputTokens: 1024
+            }
+        };
+
+        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) throw new Error('API Error');
+
+        const data = await response.json();
+        const text = data.candidates[0].content.parts[0].text;
+
+        // Extract message from response
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const result = JSON.parse(jsonMatch[0]);
+            elements.firstMessageText.textContent = result.message || text;
+        } else {
+            elements.firstMessageText.textContent = text;
+        }
+
+        elements.firstMessageResult.style.display = 'block';
+
+    } catch (error) {
+        console.error('First message error:', error);
+        elements.firstMessageText.textContent = generateFallbackFirstMessage(girl);
+        elements.firstMessageResult.style.display = 'block';
+    } finally {
+        elements.generateFirstMsgBtn.disabled = false;
+        elements.generateFirstMsgBtn.innerHTML = '<span class="btn-icon">💌</span> 初手メッセージを生成';
+    }
+}
+
+// Build first message prompt
+function buildFirstMessagePrompt(myProfile, girl) {
+    return `あなたはマッチングアプリの返信アドバイザーです。マッチしたばかりの相手に送る最初のメッセージを作成してください。
+
+【重要なポイント】
+- 相手のプロフィールに触れる（共通点や興味を持った点）
+- 質問で終わる（会話のきっかけを作る）
+- 長すぎず短すぎない（3〜5文程度）
+- 誠実さを感じさせつつも軽さも持たせる
+- 「いいねありがとうございます」だけで終わらない
+
+【相手の情報】
+${girl.name ? `名前: ${girl.name}` : ''}
+${girl.age ? `年齢: ${girl.age}歳` : ''}
+${girl.features ? `特徴・プロフィール: ${girl.features}` : ''}
+
+【自分の情報】
+${myProfile.name ? `名前: ${myProfile.name}` : ''}
+${myProfile.age ? `年齢: ${myProfile.age}歳` : ''}
+${myProfile.job ? `職業: ${myProfile.job}` : ''}
+${myProfile.bio ? `自己紹介: ${myProfile.bio}` : ''}
+
+以下のJSON形式で出力:
+{"message": "初手メッセージの内容"}`;
+}
+
+// Fallback first message
+function generateFallbackFirstMessage(girl) {
+    const templates = [
+        `マッチありがとうございます！プロフィール見て気になってました☺️\n${girl.features ? girl.features.split('\n')[0] + 'って素敵ですね！' : ''}\nよかったら仲良くしてください！`,
+        `はじめまして！いいねありがとうございます✨\n${girl.name ? girl.name + 'さんの' : ''}プロフィール見て共通点ありそうだなって思いました！\nぜひお話しましょう😊`,
+        `こんにちは！マッチ嬉しいです！\n${girl.features ? girl.features.split('\n')[0] + 'にすごく興味あります！' : 'プロフィール素敵ですね！'}\nよかったら色々教えてください☺️`
+    ];
+    return templates[Math.floor(Math.random() * templates.length)];
+}
+
+// Copy first message
+window.copyFirstMessage = function () {
+    const text = elements.firstMessageText.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.btn-copy-first');
+        btn.textContent = '✓ コピー済み';
+        setTimeout(() => { btn.textContent = '📋 コピー'; }, 2000);
+    });
+};
+
+// Filter suggestions by category
+function filterSuggestionsByCategory(category) {
+    // Update active tab
+    document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.category === category);
+    });
+
+    // Filter cards
+    const cards = elements.suggestionsList.querySelectorAll('.suggestion-card');
+    cards.forEach(card => {
+        const type = card.dataset.type;
+        let show = false;
+
+        if (category === 'all') {
+            show = true;
+        } else if (category === 'pdf1') {
+            show = type === 'pdf1';
+        } else if (category === 'pdf2') {
+            show = type === 'pdf2';
+        } else if (category === 'types') {
+            show = ['empathy', 'wit', 'closing'].includes(type);
+        } else if (category === 'line') {
+            show = ['line1', 'line2', 'line3'].includes(type);
+        } else if (category === 'combined') {
+            show = type === 'combined';
+        }
+
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
 // Display suggestions
 function displaySuggestions(result) {
     elements.suggestionsList.innerHTML = '';
 
     if (result.responses && Array.isArray(result.responses)) {
+        // Show category tabs
+        elements.suggestionCategories.style.display = 'flex';
+
         result.responses.forEach((response, index) => {
             const card = createSuggestionCard(response, index);
             elements.suggestionsList.appendChild(card);
         });
+
+        // Reset category filter to 'all'
+        filterSuggestionsByCategory('all');
     }
 
     if (result.advice) {
@@ -522,20 +717,44 @@ function displaySuggestions(result) {
 // Create suggestion card
 function createSuggestionCard(response, index) {
     const typeLabels = {
+        pdf1: 'PDF1基盤',
+        pdf2: 'PDF2基盤',
         empathy: '共感型',
         wit: 'ウィット型',
-        closing: 'クロージング型'
+        closing: 'クロージング型',
+        line1: 'LINE例1',
+        line2: 'LINE例2',
+        line3: 'LINE例3',
+        combined: '統合ベスト'
+    };
+
+    const typeColors = {
+        pdf1: 'pdf1',
+        pdf2: 'pdf2',
+        empathy: 'empathy',
+        wit: 'wit',
+        closing: 'closing',
+        line1: 'line',
+        line2: 'line',
+        line3: 'line',
+        combined: 'combined'
     };
 
     const card = document.createElement('div');
     card.className = 'suggestion-card';
+    card.dataset.type = response.type;
+
+    const label = response.label || typeLabels[response.type] || response.type;
+    const colorClass = typeColors[response.type] || 'default';
+    const escapedText = response.text.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+
     card.innerHTML = `
         <div class="suggestion-header">
             <span class="suggestion-number">${index + 1}</span>
-            <span class="suggestion-type ${response.type}">${typeLabels[response.type] || response.type}</span>
+            <span class="suggestion-type ${colorClass}">${label}</span>
         </div>
         <div class="suggestion-text">${response.text}</div>
-        <button class="btn-copy" onclick="copyToClipboard(this, '${response.text.replace(/'/g, "\\'")}')">
+        <button class="btn-copy" onclick="copyToClipboard(this, '${escapedText}')">
             📋 コピー
         </button>
     `;
