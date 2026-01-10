@@ -1002,6 +1002,9 @@ function setupDropzone(dropzone, input, previewContainer, analyzeBtn, type) {
 
 // Handle selected screenshot files - Auto analyze immediately with retry
 async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) {
+    // Show global loading indicator
+    elements.loadingIndicator.style.display = 'block';
+
     for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
 
@@ -1026,9 +1029,12 @@ async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) 
                     await sleep(waitTime);
                 }
 
+                console.log(`Analyzing screenshot (attempt ${retryCount + 1})...`);
                 const info = await analyzeProfileImage(imgData, type);
+                console.log('Analysis result:', info);
+
                 if (info) {
-                    // Auto-fill form fields immediately
+                    // Auto-fill form fields immediately (OVERWRITE mode)
                     autoFillFormFields(info, type, imgData);
                     previewItem.classList.remove('analyzing');
                     previewItem.classList.add('done');
@@ -1047,6 +1053,9 @@ async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) 
             }
         }
     }
+
+    // Hide global loading indicator
+    elements.loadingIndicator.style.display = 'none';
 }
 
 // Sleep utility
@@ -1074,17 +1083,19 @@ function readFileAsDataURL(file) {
     });
 }
 
-// Auto-fill form fields based on extracted info
+// Auto-fill form fields based on extracted info (OVERWRITE mode)
 function autoFillFormFields(info, type, imgData) {
+    console.log('Auto-filling fields with info:', info);
+
     if (type === 'my') {
-        // Auto-fill my profile fields
-        if (info.name && !elements.myName.value) {
+        // Auto-fill my profile fields (OVERWRITE)
+        if (info.name) {
             elements.myName.value = info.name;
         }
-        if (info.age && !elements.myAge.value) {
+        if (info.age) {
             elements.myAge.value = info.age;
         }
-        if (info.job && !elements.myJob.value) {
+        if (info.job) {
             elements.myJob.value = info.job;
         }
 
@@ -1092,26 +1103,28 @@ function autoFillFormFields(info, type, imgData) {
         let bioText = '';
         if (info.hobbies) bioText += `趣味: ${info.hobbies}\n`;
         if (info.bio) bioText += info.bio;
-        if (bioText && !elements.myBio.value) {
-            elements.myBio.value = bioText.trim();
-        } else if (bioText) {
-            elements.myBio.value = (elements.myBio.value + '\n' + bioText).trim();
+        if (bioText) {
+            // Append to existing or set new
+            elements.myBio.value = elements.myBio.value
+                ? elements.myBio.value + '\n' + bioText.trim()
+                : bioText.trim();
         }
 
-        // Set face photo as profile icon
-        if (info.hasFacePhoto) {
+        // Set face photo as profile icon (always if face detected)
+        if (info.hasFacePhoto && imgData) {
             elements.myImagePreview.innerHTML = `<img src="${imgData}" alt="Profile">`;
-            if (state.myProfile) {
-                state.myProfile.photo = imgData;
+            if (!state.myProfile) {
+                state.myProfile = {};
             }
+            state.myProfile.photo = imgData;
         }
 
     } else {
-        // Auto-fill girl profile fields
-        if (info.name && !elements.girlName.value) {
+        // Auto-fill girl profile fields (OVERWRITE)
+        if (info.name) {
             elements.girlName.value = info.name;
         }
-        if (info.age && !elements.girlAge.value) {
+        if (info.age) {
             elements.girlAge.value = info.age;
         }
 
@@ -1121,16 +1134,21 @@ function autoFillFormFields(info, type, imgData) {
         if (info.hobbies) featuresText += `趣味: ${info.hobbies}\n`;
         if (info.features) featuresText += info.features;
         if (featuresText) {
-            elements.girlFeatures.value = (elements.girlFeatures.value ? elements.girlFeatures.value + '\n' : '') + featuresText.trim();
+            // Append to existing or set new
+            elements.girlFeatures.value = elements.girlFeatures.value
+                ? elements.girlFeatures.value + '\n' + featuresText.trim()
+                : featuresText.trim();
         }
 
         // Add conversation history
         if (info.history) {
-            elements.girlHistory.value = (elements.girlHistory.value ? elements.girlHistory.value + '\n' : '') + info.history;
+            elements.girlHistory.value = elements.girlHistory.value
+                ? elements.girlHistory.value + '\n' + info.history
+                : info.history;
         }
 
-        // Set face photo as girl's profile icon
-        if (info.hasFacePhoto && !state.girls[state.activeTab].photo) {
+        // Set face photo as girl's profile icon (always if face detected)
+        if (info.hasFacePhoto && imgData) {
             elements.girlImagePreview.innerHTML = `<img src="${imgData}" alt="Girl">`;
             state.girls[state.activeTab].photo = imgData;
         }
@@ -1138,6 +1156,8 @@ function autoFillFormFields(info, type, imgData) {
         // Save updated girl data
         saveCurrentGirl();
     }
+
+    console.log('Fields updated successfully');
 }
 
 // Add screenshot preview
