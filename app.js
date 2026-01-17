@@ -3,977 +3,471 @@
 // ============================================
 
 // Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyAIfR5zX3FzgwfUJ-XgqMLfPyt8pCkpzIg';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_VISION_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-// State Management
-const state = {
-    myProfile: null,
-    girls: Array(20).fill(null).map((_, i) => ({
-        id: i + 1,
+// Get API key from app state
+function getApiKey() {
+    return appState.apiKey || '';
+}
+
+// Application State
+const appState = {
+    apiKey: '',
+    myProfile: {
         name: '',
         age: '',
-        features: '',
-        photo: '',
-        history: '',
-        lastMessage: ''
-    })),
-    activeTab: 0,
-    initialized: false
+        job: '',
+        memo: '',
+        photo: null,
+        attributes: ''
+    },
+    girls: [],
+    selectedGirlIndex: -1,
+    selectedPlan: null,
+    isProfileSetup: false
 };
 
-// DOM Elements
-const elements = {};
+// DOM Elements Cache
+let elements = {};
 
-// Initialize App
+// ============================================
+// Initialization
+// ============================================
+
 document.addEventListener('DOMContentLoaded', () => {
     initElements();
     loadFromStorage();
     initEventListeners();
-    renderTabs();
     updateUI();
 });
 
-// Initialize DOM Element References
 function initElements() {
-    elements.setupModal = document.getElementById('setupModal');
-    elements.myProfileUpload = document.getElementById('myProfileUpload');
-    elements.myImagePreview = document.getElementById('myImagePreview');
-    elements.myPhotoInput = document.getElementById('myPhotoInput');
-    elements.myName = document.getElementById('myName');
-    elements.myAge = document.getElementById('myAge');
-    elements.myJob = document.getElementById('myJob');
-    elements.myBio = document.getElementById('myBio');
-    elements.saveProfileBtn = document.getElementById('saveProfileBtn');
-    elements.editProfileBtn = document.getElementById('editProfileBtn');
-    elements.myProfileImage = document.getElementById('myProfileImage');
-    elements.displayMyName = document.getElementById('displayMyName');
-    elements.displayMyDetails = document.getElementById('displayMyDetails');
-    elements.displayMyBio = document.getElementById('displayMyBio');
-    elements.girlTabs = document.getElementById('girlTabs');
-    elements.addTabBtn = document.getElementById('addTabBtn');
-    elements.girlImageUpload = document.getElementById('girlImageUpload');
-    elements.girlImagePreview = document.getElementById('girlImagePreview');
-    elements.girlPhotoInput = document.getElementById('girlPhotoInput');
-    elements.girlName = document.getElementById('girlName');
-    elements.girlAge = document.getElementById('girlAge');
-    elements.girlFeatures = document.getElementById('girlFeatures');
-    elements.girlHistory = document.getElementById('girlHistory');
-    elements.receivedMessage = document.getElementById('receivedMessage');
-    elements.generateBtn = document.getElementById('generateBtn');
-    elements.suggestionsSection = document.getElementById('suggestionsSection');
-    elements.loadingIndicator = document.getElementById('loadingIndicator');
-    elements.suggestionsList = document.getElementById('suggestionsList');
-    elements.strategyAdvice = document.getElementById('strategyAdvice');
-    elements.adviceText = document.getElementById('adviceText');
+    elements = {
+        // Screens
+        setupScreen: document.getElementById('setupScreen'),
+        mainScreen: document.getElementById('mainScreen'),
 
-    // Screenshot elements
-    elements.myScreenshotDropzone = document.getElementById('myScreenshotDropzone');
-    elements.myScreenshotInput = document.getElementById('myScreenshotInput');
-    elements.myScreenshotPreviews = document.getElementById('myScreenshotPreviews');
-    elements.analyzeMyScreenshotsBtn = document.getElementById('analyzeMyScreenshotsBtn');
-    elements.girlScreenshotDropzone = document.getElementById('girlScreenshotDropzone');
-    elements.girlScreenshotInput = document.getElementById('girlScreenshotInput');
-    elements.girlScreenshotPreviews = document.getElementById('girlScreenshotPreviews');
-    elements.analyzeGirlScreenshotsBtn = document.getElementById('analyzeGirlScreenshotsBtn');
+        // Setup Screen
+        myPhotoUploadArea: document.getElementById('myPhotoUploadArea'),
+        myPhotoInput: document.getElementById('myPhotoInput'),
+        myPhotoPreview: document.getElementById('myPhotoPreview'),
+        myName: document.getElementById('myName'),
+        myAge: document.getElementById('myAge'),
+        myJob: document.getElementById('myJob'),
+        myMemo: document.getElementById('myMemo'),
+        myScreenshotDropzone: document.getElementById('myScreenshotDropzone'),
+        myScreenshotInput: document.getElementById('myScreenshotInput'),
+        myScreenshotPreviews: document.getElementById('myScreenshotPreviews'),
+        myAnalysisResult: document.getElementById('myAnalysisResult'),
+        saveProfileBtn: document.getElementById('saveProfileBtn'),
 
-    // First message elements
-    elements.generateFirstMsgBtn = document.getElementById('generateFirstMsgBtn');
-    elements.firstMessageResult = document.getElementById('firstMessageResult');
-    elements.firstMessageText = document.getElementById('firstMessageText');
+        // Main Screen - Sidebar
+        girlList: document.getElementById('girlList'),
+        emptyListMessage: document.getElementById('emptyListMessage'),
+        addGirlBtn: document.getElementById('addGirlBtn'),
 
-    // Category tabs
-    elements.suggestionCategories = document.getElementById('suggestionCategories');
+        // Main Screen - Content Views
+        noSelectionView: document.getElementById('noSelectionView'),
+        girlFormView: document.getElementById('girlFormView'),
+        messageView: document.getElementById('messageView'),
+
+        // Girl Form
+        girlName: document.getElementById('girlName'),
+        girlMemo: document.getElementById('girlMemo'),
+        girlScreenshotDropzone: document.getElementById('girlScreenshotDropzone'),
+        girlScreenshotInput: document.getElementById('girlScreenshotInput'),
+        girlScreenshotPreviews: document.getElementById('girlScreenshotPreviews'),
+        girlAnalysisResult: document.getElementById('girlAnalysisResult'),
+        cancelAddGirlBtn: document.getElementById('cancelAddGirlBtn'),
+        saveGirlBtn: document.getElementById('saveGirlBtn'),
+
+        // Message View
+        selectedGirlAvatar: document.getElementById('selectedGirlAvatar'),
+        selectedGirlName: document.getElementById('selectedGirlName'),
+        selectedGirlMemo: document.getElementById('selectedGirlMemo'),
+        editGirlBtn: document.getElementById('editGirlBtn'),
+        deleteGirlBtn: document.getElementById('deleteGirlBtn'),
+        planButtons: document.querySelectorAll('.plan-btn'),
+        customPlanInput: document.getElementById('customPlanInput'),
+        customPlanText: document.getElementById('customPlanText'),
+        receivedMessage: document.getElementById('receivedMessage'),
+        generateBtn: document.getElementById('generateBtn'),
+        cameraBtn: document.getElementById('cameraBtn'),
+        loadingIndicator: document.getElementById('loadingIndicator'),
+        suggestionsList: document.getElementById('suggestionsList'),
+
+        // Camera Modal
+        cameraModal: document.getElementById('cameraModal'),
+        closeCameraModal: document.getElementById('closeCameraModal'),
+        chatScreenshotDropzone: document.getElementById('chatScreenshotDropzone'),
+        chatScreenshotInput: document.getElementById('chatScreenshotInput'),
+        chatScreenshotPreviews: document.getElementById('chatScreenshotPreviews'),
+        analyzeChatBtn: document.getElementById('analyzeChatBtn'),
+
+        // Profile Edit
+        profileEditTab: document.getElementById('profileEditTab'),
+        openProfileEditBtn: document.getElementById('openProfileEditBtn'),
+        profileEditModal: document.getElementById('profileEditModal'),
+        closeProfileModal: document.getElementById('closeProfileModal'),
+        myAvatarSmall: document.getElementById('myAvatarSmall'),
+        myNameSmall: document.getElementById('myNameSmall'),
+        editPhotoUploadArea: document.getElementById('editPhotoUploadArea'),
+        editPhotoInput: document.getElementById('editPhotoInput'),
+        editPhotoPreview: document.getElementById('editPhotoPreview'),
+        editMyName: document.getElementById('editMyName'),
+        editMyAge: document.getElementById('editMyAge'),
+        editMyJob: document.getElementById('editMyJob'),
+        editMyMemo: document.getElementById('editMyMemo'),
+        updateProfileBtn: document.getElementById('updateProfileBtn')
+    };
 }
 
-// Initialize Event Listeners
 function initEventListeners() {
-    // Profile photo upload
-    elements.myProfileUpload.addEventListener('click', () => elements.myPhotoInput.click());
+    // Setup Screen
+    elements.myPhotoUploadArea.addEventListener('click', () => elements.myPhotoInput.click());
     elements.myPhotoInput.addEventListener('change', handleMyPhotoUpload);
-
-    // Save profile
+    setupDropzone(elements.myScreenshotDropzone, elements.myScreenshotInput, elements.myScreenshotPreviews, 'my');
     elements.saveProfileBtn.addEventListener('click', saveMyProfile);
 
-    // Edit profile
-    elements.editProfileBtn.addEventListener('click', showProfileModal);
+    // Add Girl
+    elements.addGirlBtn.addEventListener('click', showGirlForm);
+    elements.cancelAddGirlBtn.addEventListener('click', hideGirlForm);
+    elements.saveGirlBtn.addEventListener('click', saveGirl);
+    setupDropzone(elements.girlScreenshotDropzone, elements.girlScreenshotInput, elements.girlScreenshotPreviews, 'girl');
 
-    // Girl photo upload
-    elements.girlImageUpload.addEventListener('click', () => elements.girlPhotoInput.click());
-    elements.girlPhotoInput.addEventListener('change', handleGirlPhotoUpload);
-
-    // Girl info auto-save
-    elements.girlName.addEventListener('change', saveCurrentGirl);
-    elements.girlAge.addEventListener('change', saveCurrentGirl);
-    elements.girlFeatures.addEventListener('change', saveCurrentGirl);
-    elements.girlHistory.addEventListener('change', saveCurrentGirl);
-
-    // Add tab button
-    elements.addTabBtn.addEventListener('click', addNewTab);
-
-    // Generate responses
-    elements.generateBtn.addEventListener('click', generateResponses);
-
-    // First message generator
-    elements.generateFirstMsgBtn.addEventListener('click', generateFirstMessage);
-
-    // Category tabs
-    document.querySelectorAll('.category-tab').forEach(tab => {
-        tab.addEventListener('click', () => filterSuggestionsByCategory(tab.dataset.category));
+    // Plan Selection
+    elements.planButtons.forEach(btn => {
+        btn.addEventListener('click', () => selectPlan(btn.dataset.plan));
     });
 
-    // Screenshot dropzone events - My Profile
-    setupDropzone(elements.myScreenshotDropzone, elements.myScreenshotInput, elements.myScreenshotPreviews, elements.analyzeMyScreenshotsBtn, 'my');
+    // Message Generation
+    elements.generateBtn.addEventListener('click', generateResponses);
 
-    // Screenshot dropzone events - Girl
-    setupDropzone(elements.girlScreenshotDropzone, elements.girlScreenshotInput, elements.girlScreenshotPreviews, elements.analyzeGirlScreenshotsBtn, 'girl');
+    // Camera Modal
+    elements.cameraBtn.addEventListener('click', () => showModal(elements.cameraModal));
+    elements.closeCameraModal.addEventListener('click', () => hideModal(elements.cameraModal));
+    setupDropzone(elements.chatScreenshotDropzone, elements.chatScreenshotInput, elements.chatScreenshotPreviews, 'chat');
+    elements.analyzeChatBtn.addEventListener('click', analyzeChatAndGenerate);
+
+    // Profile Edit
+    elements.openProfileEditBtn.addEventListener('click', openProfileEditModal);
+    elements.closeProfileModal.addEventListener('click', () => hideModal(elements.profileEditModal));
+    elements.editPhotoUploadArea.addEventListener('click', () => elements.editPhotoInput.click());
+    elements.editPhotoInput.addEventListener('change', handleEditPhotoUpload);
+    elements.updateProfileBtn.addEventListener('click', updateMyProfile);
+
+    // Girl Actions
+    elements.deleteGirlBtn.addEventListener('click', deleteSelectedGirl);
 }
 
-// Load data from localStorage
+// ============================================
+// Storage Management
+// ============================================
+
 function loadFromStorage() {
-    const savedProfile = localStorage.getItem('myProfile');
-    const savedGirls = localStorage.getItem('girls');
-    const savedActiveTab = localStorage.getItem('activeTab');
-
-    if (savedProfile) {
-        state.myProfile = JSON.parse(savedProfile);
-        state.initialized = true;
-    }
-
-    if (savedGirls) {
-        state.girls = JSON.parse(savedGirls);
-    }
-
-    if (savedActiveTab !== null) {
-        state.activeTab = parseInt(savedActiveTab, 10);
+    try {
+        const saved = localStorage.getItem('datingAppData');
+        if (saved) {
+            const data = JSON.parse(saved);
+            appState.apiKey = data.apiKey || '';
+            appState.myProfile = data.myProfile || appState.myProfile;
+            appState.girls = data.girls || [];
+            appState.isProfileSetup = data.isProfileSetup || false;
+        }
+    } catch (e) {
+        console.error('Failed to load from storage:', e);
     }
 }
 
-// Save to localStorage
 function saveToStorage() {
-    localStorage.setItem('myProfile', JSON.stringify(state.myProfile));
-    localStorage.setItem('girls', JSON.stringify(state.girls));
-    localStorage.setItem('activeTab', state.activeTab.toString());
-}
-
-// Handle my photo upload
-async function handleMyPhotoUpload(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const imgData = event.target.result;
-            elements.myImagePreview.innerHTML = `<img src="${imgData}" alt="Profile">`;
-
-            // Show analyzing status
-            showAnalyzingStatus(elements.myImagePreview);
-
-            // Analyze image with Gemini Vision
-            try {
-                const extractedInfo = await analyzeProfileImage(imgData, 'my');
-                if (extractedInfo) {
-                    // Auto-fill extracted info
-                    if (extractedInfo.name && !elements.myName.value) {
-                        elements.myName.value = extractedInfo.name;
-                    }
-                    if (extractedInfo.age && !elements.myAge.value) {
-                        elements.myAge.value = extractedInfo.age;
-                    }
-                    if (extractedInfo.job && !elements.myJob.value) {
-                        elements.myJob.value = extractedInfo.job;
-                    }
-                    if (extractedInfo.bio) {
-                        elements.myBio.value = (elements.myBio.value ? elements.myBio.value + '\n' : '') + extractedInfo.bio;
-                    }
-                    showExtractedNotice(elements.myImagePreview, '情報を抽出しました');
-                }
-            } catch (error) {
-                console.error('Image analysis error:', error);
-                hideAnalyzingStatus(elements.myImagePreview);
-            }
-
-            if (state.myProfile) {
-                state.myProfile.photo = imgData;
-            }
-        };
-        reader.readAsDataURL(file);
+    try {
+        localStorage.setItem('datingAppData', JSON.stringify({
+            apiKey: appState.apiKey,
+            myProfile: appState.myProfile,
+            girls: appState.girls,
+            isProfileSetup: appState.isProfileSetup
+        }));
+    } catch (e) {
+        console.error('Failed to save to storage:', e);
     }
 }
 
-// Handle girl photo upload
-async function handleGirlPhotoUpload(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const imgData = event.target.result;
-            elements.girlImagePreview.innerHTML = `<img src="${imgData}" alt="Girl">`;
-            state.girls[state.activeTab].photo = imgData;
-            saveToStorage();
-            renderTabs();
+// ============================================
+// UI Updates
+// ============================================
 
-            // Show analyzing status
-            showAnalyzingStatus(elements.girlImagePreview);
-
-            // Analyze image with Gemini Vision
-            try {
-                const extractedInfo = await analyzeProfileImage(imgData, 'girl');
-                if (extractedInfo) {
-                    // Auto-fill extracted info
-                    if (extractedInfo.name && !elements.girlName.value) {
-                        elements.girlName.value = extractedInfo.name;
-                    }
-                    if (extractedInfo.age && !elements.girlAge.value) {
-                        elements.girlAge.value = extractedInfo.age;
-                    }
-                    if (extractedInfo.features) {
-                        elements.girlFeatures.value = (elements.girlFeatures.value ? elements.girlFeatures.value + '\n' : '') + extractedInfo.features;
-                    }
-                    if (extractedInfo.history) {
-                        elements.girlHistory.value = (elements.girlHistory.value ? elements.girlHistory.value + '\n' : '') + extractedInfo.history;
-                    }
-
-                    // Save the updated data
-                    saveCurrentGirl();
-                    showExtractedNotice(elements.girlImagePreview, '情報を抽出しました');
-                }
-            } catch (error) {
-                console.error('Image analysis error:', error);
-                hideAnalyzingStatus(elements.girlImagePreview);
-            }
-        };
-        reader.readAsDataURL(file);
+function updateUI() {
+    if (appState.isProfileSetup) {
+        elements.setupScreen.style.display = 'none';
+        elements.mainScreen.style.display = 'grid';
+        updateProfileDisplay();
+        renderGirlList();
+    } else {
+        elements.setupScreen.style.display = 'flex';
+        elements.mainScreen.style.display = 'none';
     }
 }
 
-// Save my profile
+function updateProfileDisplay() {
+    // Small avatar in header
+    if (appState.myProfile.photo) {
+        elements.myAvatarSmall.innerHTML = `<img src="${appState.myProfile.photo}" alt="My Photo">`;
+    } else {
+        elements.myAvatarSmall.textContent = '👤';
+    }
+    elements.myNameSmall.textContent = appState.myProfile.name || 'プロフィール';
+}
+
+function renderGirlList() {
+    const list = elements.girlList;
+    list.innerHTML = '';
+
+    if (appState.girls.length === 0) {
+        list.innerHTML = `<div class="empty-list-message"><p>「+」ボタンで女の子を追加してください</p></div>`;
+        return;
+    }
+
+    appState.girls.forEach((girl, index) => {
+        const tab = document.createElement('div');
+        tab.className = `girl-tab ${index === appState.selectedGirlIndex ? 'active' : ''}`;
+        tab.innerHTML = `
+            <div class="avatar">
+                ${girl.photo ? `<img src="${girl.photo}" alt="${girl.name}">` : '👩'}
+            </div>
+            <span class="name">${girl.name}</span>
+        `;
+        tab.addEventListener('click', () => selectGirl(index));
+        list.appendChild(tab);
+    });
+}
+
+// ============================================
+// Profile Management
+// ============================================
+
+function handleMyPhotoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const photoData = event.target.result;
+        appState.myProfile.photo = photoData;
+        elements.myPhotoPreview.innerHTML = `<img src="${photoData}" alt="My Photo">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleEditPhotoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const photoData = event.target.result;
+        appState.myProfile.photo = photoData;
+        elements.editPhotoPreview.innerHTML = `<img src="${photoData}" alt="My Photo">`;
+    };
+    reader.readAsDataURL(file);
+}
+
 function saveMyProfile() {
     const name = elements.myName.value.trim();
-    const age = elements.myAge.value;
-    const job = elements.myJob.value.trim();
-    const bio = elements.myBio.value.trim();
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
 
+    if (!apiKey) {
+        alert('APIキーを入力してください');
+        return;
+    }
     if (!name) {
         alert('名前を入力してください');
         return;
     }
 
-    // Get photo from preview
-    const imgElement = elements.myImagePreview.querySelector('img');
-    const photo = imgElement ? imgElement.src : '';
-
-    state.myProfile = { name, age, job, bio, photo };
-    state.initialized = true;
+    appState.apiKey = apiKey;
+    appState.myProfile.name = name;
+    appState.myProfile.age = elements.myAge.value;
+    appState.myProfile.job = elements.myJob.value;
+    appState.myProfile.memo = elements.myMemo.value;
+    appState.isProfileSetup = true;
 
     saveToStorage();
-    hideProfileModal();
-    updateMyProfileDisplay();
+    updateUI();
 }
 
-// Show profile modal
-function showProfileModal() {
-    elements.setupModal.classList.remove('hidden');
-    if (state.myProfile) {
-        elements.myName.value = state.myProfile.name || '';
-        elements.myAge.value = state.myProfile.age || '';
-        elements.myJob.value = state.myProfile.job || '';
-        elements.myBio.value = state.myProfile.bio || '';
-        if (state.myProfile.photo) {
-            elements.myImagePreview.innerHTML = `<img src="${state.myProfile.photo}" alt="Profile">`;
-        }
+function openProfileEditModal() {
+    document.getElementById('editApiKey').value = appState.apiKey || '';
+    elements.editMyName.value = appState.myProfile.name || '';
+    elements.editMyAge.value = appState.myProfile.age || '';
+    elements.editMyJob.value = appState.myProfile.job || '';
+    elements.editMyMemo.value = appState.myProfile.memo || '';
+
+    if (appState.myProfile.photo) {
+        elements.editPhotoPreview.innerHTML = `<img src="${appState.myProfile.photo}" alt="My Photo">`;
     }
+
+    showModal(elements.profileEditModal);
 }
 
-// Hide profile modal
-function hideProfileModal() {
-    elements.setupModal.classList.add('hidden');
-}
-
-// Update my profile display
-function updateMyProfileDisplay() {
-    if (state.myProfile) {
-        elements.displayMyName.textContent = state.myProfile.name || '未設定';
-        elements.displayMyDetails.textContent =
-            `${state.myProfile.age ? state.myProfile.age + '歳' : ''} ${state.myProfile.job || ''}`.trim() || '-';
-        elements.displayMyBio.textContent = state.myProfile.bio || '-';
-
-        if (state.myProfile.photo) {
-            elements.myProfileImage.innerHTML = `<img src="${state.myProfile.photo}" alt="Profile">`;
-        } else {
-            elements.myProfileImage.innerHTML = '<span>📷</span>';
-        }
+function updateMyProfile() {
+    const apiKey = document.getElementById('editApiKey').value.trim();
+    if (apiKey) {
+        appState.apiKey = apiKey;
     }
-}
+    appState.myProfile.name = elements.editMyName.value.trim() || appState.myProfile.name;
+    appState.myProfile.age = elements.editMyAge.value;
+    appState.myProfile.job = elements.editMyJob.value;
+    appState.myProfile.memo = elements.editMyMemo.value;
 
-// Render tabs
-function renderTabs() {
-    elements.girlTabs.innerHTML = '';
-
-    // Find tabs with data
-    const activeTabs = state.girls.map((girl, index) => ({
-        index,
-        hasData: girl.name || girl.photo
-    }));
-
-    // Always show at least 3 tabs
-    const tabsToShow = Math.max(3, activeTabs.filter(t => t.hasData).length + 1);
-
-    for (let i = 0; i < Math.min(tabsToShow, 20); i++) {
-        const girl = state.girls[i];
-        const tab = document.createElement('button');
-        tab.className = `tab-btn ${i === state.activeTab ? 'active' : ''}`;
-
-        const name = girl.name || `${i + 1}`;
-        const icon = girl.photo ? '👩' : '👤';
-
-        tab.innerHTML = `
-            <span>${icon}</span>
-            <span class="tab-name">${name}</span>
-            ${i > 0 ? '<span class="tab-close" onclick="event.stopPropagation(); clearTab(' + i + ')">×</span>' : ''}
-        `;
-
-        tab.addEventListener('click', () => switchTab(i));
-        elements.girlTabs.appendChild(tab);
-    }
-}
-
-// Switch tab
-function switchTab(index) {
-    // Save current girl data first
-    saveCurrentGirl();
-
-    state.activeTab = index;
     saveToStorage();
-    renderTabs();
-    loadCurrentGirl();
-    clearSuggestions();
+    updateProfileDisplay();
+    hideModal(elements.profileEditModal);
 }
 
-// Add new tab
-function addNewTab() {
-    const currentCount = document.querySelectorAll('.tab-btn').length;
-    if (currentCount >= 20) {
-        alert('タブは最大20個までです');
+// ============================================
+// Girl Management
+// ============================================
+
+let tempGirlData = {
+    photo: null,
+    attributes: ''
+};
+
+function showGirlForm() {
+    tempGirlData = { photo: null, attributes: '' };
+    elements.girlName.value = '';
+    elements.girlMemo.value = '';
+    elements.girlScreenshotPreviews.innerHTML = '';
+    elements.girlAnalysisResult.classList.remove('show');
+
+    hideAllViews();
+    elements.girlFormView.style.display = 'flex';
+}
+
+function hideGirlForm() {
+    elements.girlFormView.style.display = 'none';
+
+    if (appState.selectedGirlIndex >= 0) {
+        showMessageView();
+    } else {
+        elements.noSelectionView.style.display = 'flex';
+    }
+}
+
+function saveGirl() {
+    const name = elements.girlName.value.trim();
+    if (!name) {
+        alert('名前を入力してください');
         return;
     }
 
-    switchTab(currentCount);
-    renderTabs();
-}
+    const girl = {
+        id: Date.now(),
+        name: name,
+        memo: elements.girlMemo.value,
+        photo: tempGirlData.photo,
+        attributes: tempGirlData.attributes,
+        conversationHistory: []
+    };
 
-// Clear tab
-window.clearTab = function (index) {
-    if (confirm('このタブをクリアしますか？')) {
-        state.girls[index] = {
-            id: index + 1,
-            name: '',
-            age: '',
-            features: '',
-            photo: '',
-            history: '',
-            lastMessage: ''
-        };
-        saveToStorage();
+    appState.girls.push(girl);
+    appState.selectedGirlIndex = appState.girls.length - 1;
 
-        if (state.activeTab === index) {
-            loadCurrentGirl();
-        }
-        renderTabs();
-    }
-};
-
-// Save current girl data
-function saveCurrentGirl() {
-    const girl = state.girls[state.activeTab];
-    girl.name = elements.girlName.value.trim();
-    girl.age = elements.girlAge.value;
-    girl.features = elements.girlFeatures.value.trim();
-    girl.history = elements.girlHistory.value.trim();
     saveToStorage();
-    renderTabs();
+    renderGirlList();
+    hideGirlForm();
+    showMessageView();
 }
 
-// Load current girl data
-function loadCurrentGirl() {
-    const girl = state.girls[state.activeTab];
-    elements.girlName.value = girl.name || '';
-    elements.girlAge.value = girl.age || '';
-    elements.girlFeatures.value = girl.features || '';
-    elements.girlHistory.value = girl.history || '';
-    elements.receivedMessage.value = girl.lastMessage || '';
+function selectGirl(index) {
+    appState.selectedGirlIndex = index;
+    renderGirlList();
+    hideAllViews();
+    showMessageView();
+}
+
+function showMessageView() {
+    const girl = appState.girls[appState.selectedGirlIndex];
+    if (!girl) return;
+
+    elements.selectedGirlName.textContent = girl.name;
+    elements.selectedGirlMemo.textContent = girl.memo || '(メモなし)';
 
     if (girl.photo) {
-        elements.girlImagePreview.innerHTML = `<img src="${girl.photo}" alt="Girl">`;
+        elements.selectedGirlAvatar.innerHTML = `<img src="${girl.photo}" alt="${girl.name}">`;
     } else {
-        elements.girlImagePreview.innerHTML = '<span class="upload-icon">👩</span>';
+        elements.selectedGirlAvatar.textContent = '👩';
     }
-}
 
-// Clear suggestions
-function clearSuggestions() {
+    // Reset message view state
+    elements.receivedMessage.value = '';
     elements.suggestionsList.innerHTML = '';
-    elements.strategyAdvice.style.display = 'none';
+    appState.selectedPlan = null;
+    elements.planButtons.forEach(btn => btn.classList.remove('active'));
+    elements.customPlanInput.style.display = 'none';
+
+    elements.messageView.style.display = 'block';
 }
 
-// Generate responses using Gemini API
-async function generateResponses() {
-    const message = elements.receivedMessage.value.trim();
+function deleteSelectedGirl() {
+    if (appState.selectedGirlIndex < 0) return;
 
-    if (!message) {
-        alert('相手からのメッセージを入力してください');
-        return;
-    }
+    const girl = appState.girls[appState.selectedGirlIndex];
+    if (!confirm(`${girl.name}さんを削除しますか？`)) return;
 
-    // Save the message
-    state.girls[state.activeTab].lastMessage = message;
+    appState.girls.splice(appState.selectedGirlIndex, 1);
+    appState.selectedGirlIndex = -1;
+
     saveToStorage();
-
-    // Show loading
-    elements.loadingIndicator.style.display = 'block';
-    elements.suggestionsList.innerHTML = '';
-    elements.strategyAdvice.style.display = 'none';
-
-    try {
-        const girl = state.girls[state.activeTab];
-        const myProfile = state.myProfile || {};
-
-        // Build context
-        const context = buildContext(myProfile, girl, message);
-
-        // Call Gemini API
-        const response = await callGeminiAPI(context);
-
-        // Display results
-        displaySuggestions(response);
-
-    } catch (error) {
-        console.error('API Error:', error);
-        displayFallbackSuggestions(message);
-    } finally {
-        elements.loadingIndicator.style.display = 'none';
-    }
+    renderGirlList();
+    hideAllViews();
+    elements.noSelectionView.style.display = 'flex';
 }
 
-// Build context for API
-function buildContext(myProfile, girl, message) {
-    let context = `【相手からのメッセージ】\n${message}\n\n`;
-
-    if (girl.name || girl.features) {
-        context += `【相手の情報】\n`;
-        if (girl.name) context += `名前: ${girl.name}\n`;
-        if (girl.age) context += `年齢: ${girl.age}歳\n`;
-        if (girl.features) context += `特徴: ${girl.features}\n`;
-        context += '\n';
-    }
-
-    if (girl.history) {
-        context += `【これまでの会話】\n${girl.history}\n\n`;
-    }
-
-    if (myProfile.name || myProfile.bio) {
-        context += `【自分の情報】\n`;
-        if (myProfile.name) context += `名前: ${myProfile.name}\n`;
-        if (myProfile.job) context += `職業: ${myProfile.job}\n`;
-        if (myProfile.bio) context += `特徴: ${myProfile.bio}\n`;
-    }
-
-    return context;
-}
-
-// Call Gemini API with expanded response format
-async function callGeminiAPI(userContext) {
-    const expandedPrompt = `あなたはマッチングアプリの返信アドバイザーです。以下の情報に基づいて、11種類の返信候補を生成してください。
-
-【返信を生成する際の基本方針】
-- 短文（1〜2行）が基本だが、タイプによっては長めでもOK
-- 絵文字は控えめに使用（1〜2個程度）
-- 相手の名前は使わないか、使っても1回まで
-- 追撃LINE禁止：返信がなければ放置
-
-【生成する11種類の返信】
-1. PDF1基盤（マッチングアプリと恋愛におけるメッセージ戦略）: 非モテLINEを避け、あっさり戦略を意識した返信
-2. PDF2基盤（モテ戦略：ようしゅチャンネルの戦術）: Push & Pull、緩急、高価値男性像を意識した返信
-3. 共感型: 相手の感情に寄り添う優しい返信
-4. ウィット型: 軽いノリや笑いを誘う返信
-5. クロージング型: 次のアクション（デートや連絡先交換）に繋げる返信
-6. LINE例1: ホストの会話テクニックを参考にしたカジュアルな返信
-7. LINE例2: 相手を持ち上げつつも余裕を見せる返信
-8. LINE例3: 短くてもインパクトのある返信
-9. 統合版: 全ての要素を最もバランス良く組み合わせたベストな返信
-
-以下のJSON形式で出力してください:
-{
-    "responses": [
-        {"type": "pdf1", "label": "PDF1基盤", "text": "返信内容"},
-        {"type": "pdf2", "label": "PDF2基盤", "text": "返信内容"},
-        {"type": "empathy", "label": "共感型", "text": "返信内容"},
-        {"type": "wit", "label": "ウィット型", "text": "返信内容"},
-        {"type": "closing", "label": "クロージング型", "text": "返信内容"},
-        {"type": "line1", "label": "LINE例1", "text": "返信内容"},
-        {"type": "line2", "label": "LINE例2", "text": "返信内容"},
-        {"type": "line3", "label": "LINE例3", "text": "返信内容"},
-        {"type": "combined", "label": "統合ベスト", "text": "返信内容"}
-    ],
-    "advice": "この状況での戦略アドバイス（2〜3文）"
-}
-
-${userContext}`;
-
-    const requestBody = {
-        contents: [{
-            parts: [{
-                text: expandedPrompt
-            }]
-        }],
-        generationConfig: {
-            temperature: 0.85,
-            maxOutputTokens: 2048
-        }
-    };
-
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates[0].content.parts[0].text;
-
-    // Parse JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-    }
-
-    throw new Error('Invalid response format');
-}
-
-// Generate first message for new match
-async function generateFirstMessage() {
-    const girl = state.girls[state.activeTab];
-
-    if (!girl.name && !girl.features) {
-        alert('相手の情報を入力してください（名前や特徴など）');
-        return;
-    }
-
-    elements.generateFirstMsgBtn.disabled = true;
-    elements.generateFirstMsgBtn.textContent = '生成中...';
-    elements.firstMessageResult.style.display = 'none';
-
-    try {
-        const myProfile = state.myProfile || {};
-        const prompt = buildFirstMessagePrompt(myProfile, girl);
-
-        const requestBody = {
-            contents: [{
-                parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-                temperature: 0.9,
-                maxOutputTokens: 1024
-            }
-        };
-
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) throw new Error('API Error');
-
-        const data = await response.json();
-        const text = data.candidates[0].content.parts[0].text;
-
-        // Extract message from response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            const result = JSON.parse(jsonMatch[0]);
-            elements.firstMessageText.textContent = result.message || text;
-        } else {
-            elements.firstMessageText.textContent = text;
-        }
-
-        elements.firstMessageResult.style.display = 'block';
-
-    } catch (error) {
-        console.error('First message error:', error);
-        elements.firstMessageText.textContent = generateFallbackFirstMessage(girl);
-        elements.firstMessageResult.style.display = 'block';
-    } finally {
-        elements.generateFirstMsgBtn.disabled = false;
-        elements.generateFirstMsgBtn.innerHTML = '<span class="btn-icon">💌</span> 初手メッセージを生成';
-    }
-}
-
-// Build first message prompt
-function buildFirstMessagePrompt(myProfile, girl) {
-    return `あなたはマッチングアプリの返信アドバイザーです。マッチしたばかりの相手に送る最初のメッセージを作成してください。
-
-【重要なポイント】
-- 相手のプロフィールに触れる（共通点や興味を持った点）
-- 質問で終わる（会話のきっかけを作る）
-- 長すぎず短すぎない（3〜5文程度）
-- 誠実さを感じさせつつも軽さも持たせる
-- 「いいねありがとうございます」だけで終わらない
-
-【相手の情報】
-${girl.name ? `名前: ${girl.name}` : ''}
-${girl.age ? `年齢: ${girl.age}歳` : ''}
-${girl.features ? `特徴・プロフィール: ${girl.features}` : ''}
-
-【自分の情報】
-${myProfile.name ? `名前: ${myProfile.name}` : ''}
-${myProfile.age ? `年齢: ${myProfile.age}歳` : ''}
-${myProfile.job ? `職業: ${myProfile.job}` : ''}
-${myProfile.bio ? `自己紹介: ${myProfile.bio}` : ''}
-
-以下のJSON形式で出力:
-{"message": "初手メッセージの内容"}`;
-}
-
-// Fallback first message
-function generateFallbackFirstMessage(girl) {
-    const templates = [
-        `マッチありがとうございます！プロフィール見て気になってました☺️\n${girl.features ? girl.features.split('\n')[0] + 'って素敵ですね！' : ''}\nよかったら仲良くしてください！`,
-        `はじめまして！いいねありがとうございます✨\n${girl.name ? girl.name + 'さんの' : ''}プロフィール見て共通点ありそうだなって思いました！\nぜひお話しましょう😊`,
-        `こんにちは！マッチ嬉しいです！\n${girl.features ? girl.features.split('\n')[0] + 'にすごく興味あります！' : 'プロフィール素敵ですね！'}\nよかったら色々教えてください☺️`
-    ];
-    return templates[Math.floor(Math.random() * templates.length)];
-}
-
-// Copy first message
-window.copyFirstMessage = function () {
-    const text = elements.firstMessageText.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = document.querySelector('.btn-copy-first');
-        btn.textContent = '✓ コピー済み';
-        setTimeout(() => { btn.textContent = '📋 コピー'; }, 2000);
-    });
-};
-
-// Filter suggestions by category
-function filterSuggestionsByCategory(category) {
-    // Update active tab
-    document.querySelectorAll('.category-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.category === category);
-    });
-
-    // Filter cards
-    const cards = elements.suggestionsList.querySelectorAll('.suggestion-card');
-    cards.forEach(card => {
-        const type = card.dataset.type;
-        let show = false;
-
-        if (category === 'all') {
-            show = true;
-        } else if (category === 'pdf1') {
-            show = type === 'pdf1';
-        } else if (category === 'pdf2') {
-            show = type === 'pdf2';
-        } else if (category === 'types') {
-            show = ['empathy', 'wit', 'closing'].includes(type);
-        } else if (category === 'line') {
-            show = ['line1', 'line2', 'line3'].includes(type);
-        } else if (category === 'combined') {
-            show = type === 'combined';
-        }
-
-        card.style.display = show ? 'block' : 'none';
-    });
-}
-
-// Display suggestions
-function displaySuggestions(result) {
-    elements.suggestionsList.innerHTML = '';
-
-    if (result.responses && Array.isArray(result.responses)) {
-        // Show category tabs
-        elements.suggestionCategories.style.display = 'flex';
-
-        result.responses.forEach((response, index) => {
-            const card = createSuggestionCard(response, index);
-            elements.suggestionsList.appendChild(card);
-        });
-
-        // Reset category filter to 'all'
-        filterSuggestionsByCategory('all');
-    }
-
-    if (result.advice) {
-        elements.adviceText.textContent = result.advice;
-        elements.strategyAdvice.style.display = 'block';
-    }
-}
-
-// Create suggestion card
-function createSuggestionCard(response, index) {
-    const typeLabels = {
-        pdf1: 'PDF1基盤',
-        pdf2: 'PDF2基盤',
-        empathy: '共感型',
-        wit: 'ウィット型',
-        closing: 'クロージング型',
-        line1: 'LINE例1',
-        line2: 'LINE例2',
-        line3: 'LINE例3',
-        combined: '統合ベスト'
-    };
-
-    const typeColors = {
-        pdf1: 'pdf1',
-        pdf2: 'pdf2',
-        empathy: 'empathy',
-        wit: 'wit',
-        closing: 'closing',
-        line1: 'line',
-        line2: 'line',
-        line3: 'line',
-        combined: 'combined'
-    };
-
-    const card = document.createElement('div');
-    card.className = 'suggestion-card';
-    card.dataset.type = response.type;
-
-    const label = response.label || typeLabels[response.type] || response.type;
-    const colorClass = typeColors[response.type] || 'default';
-    const escapedText = response.text.replace(/'/g, "\\'").replace(/\n/g, '\\n');
-
-    card.innerHTML = `
-        <div class="suggestion-header">
-            <span class="suggestion-number">${index + 1}</span>
-            <span class="suggestion-type ${colorClass}">${label}</span>
-        </div>
-        <div class="suggestion-text">${response.text}</div>
-        <button class="btn-copy" onclick="copyToClipboard(this, '${escapedText}')">
-            📋 コピー
-        </button>
-    `;
-    return card;
-}
-
-// Display fallback suggestions (when API fails)
-function displayFallbackSuggestions(message) {
-    const kb = window.KNOWLEDGE_BASE;
-    const examples = kb.hostExamples;
-
-    // Simple pattern matching
-    let suggestions = [];
-
-    if (message.includes('ありがとう') || message.includes('楽しかった')) {
-        suggestions = [
-            { type: 'empathy', text: 'こちらこそ♡ 楽しかった(smile)' },
-            { type: 'wit', text: 'ねー！また行こ笑' },
-            { type: 'closing', text: '楽しかった！次いつ会える？' }
-        ];
-    } else if (message.includes('どう') || message.includes('？')) {
-        suggestions = [
-            { type: 'empathy', text: 'いいね！そうしよ☺️' },
-            { type: 'wit', text: 'おっけー！笑' },
-            { type: 'closing', text: 'いいじゃん！じゃあそれで♡' }
-        ];
-    } else if (message.includes('忙しい') || message.includes('疲れ')) {
-        suggestions = [
-            { type: 'empathy', text: '無理せずね( ^ω^ )' },
-            { type: 'wit', text: '大変そう！頑張って♡' },
-            { type: 'closing', text: '落ち着いたら教えて☺️' }
-        ];
-    } else {
-        suggestions = [
-            { type: 'empathy', text: 'わかる！いいよね☺️' },
-            { type: 'wit', text: 'それな笑' },
-            { type: 'closing', text: 'いいね！また話そ♡' }
-        ];
-    }
-
-    displaySuggestions({
-        responses: suggestions,
-        advice: kb.corePrinciples[Math.floor(Math.random() * kb.corePrinciples.length)]
-    });
-}
-
-// Copy to clipboard
-window.copyToClipboard = function (button, text) {
-    navigator.clipboard.writeText(text).then(() => {
-        button.textContent = '✓ コピー済み';
-        button.classList.add('copied');
-        setTimeout(() => {
-            button.textContent = '📋 コピー';
-            button.classList.remove('copied');
-        }, 2000);
-    });
-};
-
-// Update UI based on state
-function updateUI() {
-    if (!state.initialized) {
-        showProfileModal();
-    } else {
-        hideProfileModal();
-        updateMyProfileDisplay();
-    }
-    loadCurrentGirl();
+function hideAllViews() {
+    elements.noSelectionView.style.display = 'none';
+    elements.girlFormView.style.display = 'none';
+    elements.messageView.style.display = 'none';
 }
 
 // ============================================
-// Image Analysis with Gemini Vision API
+// Plan Selection
 // ============================================
 
-// Analyze profile image using Gemini Vision (Enhanced)
-async function analyzeProfileImage(imageData, type) {
-    // Extract base64 data from data URL
-    const base64Data = imageData.split(',')[1];
-    const mimeType = imageData.split(';')[0].split(':')[1];
+function selectPlan(plan) {
+    appState.selectedPlan = plan;
 
-    const prompt = type === 'my'
-        ? `この画像はマッチングアプリの自分のプロフィールまたはスクリーンショットです。
-画像から読み取れる情報を可能な限り詳細に抽出してください。
-
-【抽出のポイント】
-- 名前: 「ゆう」「そうた」「れん」などのニックネームや名前っぽい文字列を探す
-- 年齢: 数字で書かれている年齢（例：25歳、26）
-- 職業: 仕事や職種に関する記述
-- 趣味: サッカー、映画、旅行、音楽など趣味と思われるキーワード
-- 特徴: 性格、好きなこと、休日の過ごし方など
-- 顔写真: 画像の中に人物の顔写真が含まれているかどうか（プロフィール写真として使えそうな部分）
-
-以下のJSON形式で出力してください（読み取れない項目はnullにしてください）：
-{
-    "name": "名前（ニックネーム）",
-    "age": 年齢（数字のみ、なければnull）,
-    "job": "職業",
-    "hobbies": "趣味（複数あればカンマ区切り）",
-    "bio": "自己紹介文や特徴など読み取れる情報全て",
-    "hasFacePhoto": true/false（人物の顔写真が含まれているかどうか）,
-    "facePhotoArea": "顔写真がある場合、その位置の説明（例：画面上部にプロフィール写真あり）"
-}`
-        : `この画像はマッチングアプリの相手のプロフィールまたはトーク画面のスクリーンショットです。
-画像から読み取れる情報を可能な限り詳細に抽出してください。
-
-【抽出のポイント】
-- 名前: 「あやか」「みゆ」「ゆい」などのニックネームや名前っぽい文字列を探す
-- 年齢: 数字で書かれている年齢（例：23歳、24）
-- 趣味: カフェ、旅行、料理、ヨガなど趣味と思われるキーワード
-- 職業: 仕事や職種に関する記述（看護師、OL、美容師など）
-- 特徴: 見た目、性格、好きなタイプなど
-- トーク内容: LINEやメッセージ画面の場合、会話の内容を要約
-- 顔写真: 画像の中に人物の顔写真が含まれているかどうか
-
-以下のJSON形式で出力してください（読み取れない項目はnullにしてください）：
-{
-    "name": "名前（ニックネーム）",
-    "age": 年齢（数字のみ、なければnull）,
-    "job": "職業",
-    "hobbies": "趣味（複数あればカンマ区切り）",
-    "features": "見た目の特徴、性格、好きなタイプなど読み取れる情報全て",
-    "history": "トーク内容が含まれていれば、会話の要約",
-    "hasFacePhoto": true/false（人物の顔写真が含まれているかどうか）
-}`;
-
-    const requestBody = {
-        contents: [{
-            parts: [
-                {
-                    inlineData: {
-                        mimeType: mimeType,
-                        data: base64Data
-                    }
-                },
-                {
-                    text: prompt
-                }
-            ]
-        }],
-        generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 1500
-        }
-    };
-
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
+    elements.planButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.plan === plan);
     });
 
-    if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates[0].content.parts[0].text;
-
-    // Parse JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-    }
-
-    return null;
+    elements.customPlanInput.style.display = plan === 'custom' ? 'block' : 'none';
 }
 
-// Show analyzing status overlay
-function showAnalyzingStatus(container) {
-    const overlay = document.createElement('div');
-    overlay.className = 'analyzing-overlay';
-    overlay.innerHTML = `
-        <div class="analyzing-spinner"></div>
-        <span>解析中...</span>
-    `;
-    container.style.position = 'relative';
-    container.appendChild(overlay);
-}
-
-// Hide analyzing status
-function hideAnalyzingStatus(container) {
-    const overlay = container.querySelector('.analyzing-overlay');
-    if (overlay) {
-        overlay.remove();
+function getPlanDescription() {
+    switch (appState.selectedPlan) {
+        case 'quick': return '最速で会うことを目指す。積極的にデートに誘う';
+        case 'phone': return '電話に誘って距離を縮める';
+        case 'slow': return 'ゆっくり仲良くなる。焦らず自然体で';
+        case 'custom': return elements.customPlanText.value || '自然体で接する';
+        default: return '自然体で楽しく会話する';
     }
-}
-
-// Show extracted notice
-function showExtractedNotice(container, message) {
-    hideAnalyzingStatus(container);
-    const notice = document.createElement('div');
-    notice.className = 'extracted-notice';
-    notice.innerHTML = `<span>✓ ${message}</span>`;
-    container.appendChild(notice);
-
-    setTimeout(() => {
-        notice.remove();
-    }, 3000);
 }
 
 // ============================================
-// Multiple Screenshot Upload & Analysis
+// Screenshot Dropzone Setup
 // ============================================
 
-// Temporary storage for screenshots
 const screenshotData = {
     my: [],
-    girl: []
+    girl: [],
+    chat: []
 };
 
-// Setup dropzone events
-function setupDropzone(dropzone, input, previewContainer, analyzeBtn, type) {
-    if (!dropzone) return;
-
-    // Click to open file dialog
+function setupDropzone(dropzone, input, previewContainer, type) {
     dropzone.addEventListener('click', () => input.click());
 
-    // Drag and drop events
     dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropzone.classList.add('dragover');
@@ -986,286 +480,353 @@ function setupDropzone(dropzone, input, previewContainer, analyzeBtn, type) {
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropzone.classList.remove('dragover');
-        handleScreenshotFiles(e.dataTransfer.files, previewContainer, analyzeBtn, type);
+        handleFiles(e.dataTransfer.files, previewContainer, type);
     });
 
-    // File input change
     input.addEventListener('change', (e) => {
-        handleScreenshotFiles(e.target.files, previewContainer, analyzeBtn, type);
-    });
-
-    // Analyze button click
-    analyzeBtn.addEventListener('click', () => {
-        analyzeAllScreenshots(type, previewContainer, analyzeBtn);
+        handleFiles(e.target.files, previewContainer, type);
     });
 }
 
-// Handle selected screenshot files - Auto analyze immediately with retry
-async function handleScreenshotFiles(files, previewContainer, analyzeBtn, type) {
-    // Show global loading indicator
-    elements.loadingIndicator.style.display = 'block';
+function handleFiles(files, previewContainer, type) {
+    Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
 
-    for (const file of Array.from(files)) {
-        if (!file.type.startsWith('image/')) continue;
-
-        const imgData = await readFileAsDataURL(file);
-        screenshotData[type].push(imgData);
-        const previewItem = addScreenshotPreview(imgData, previewContainer, type);
-
-        // Auto-analyze immediately with retry
-        previewItem.classList.add('analyzing');
-        showStatusMessage(previewItem, '解析中...');
-
-        let success = false;
-        let retryCount = 0;
-        const maxRetries = 3;
-
-        while (!success && retryCount < maxRetries) {
-            try {
-                // Wait before retry (exponential backoff)
-                if (retryCount > 0) {
-                    const waitTime = Math.pow(2, retryCount) * 1000;
-                    showStatusMessage(previewItem, `リトライ中... (${retryCount}/${maxRetries})`);
-                    await sleep(waitTime);
-                }
-
-                console.log(`Analyzing screenshot (attempt ${retryCount + 1})...`);
-                const info = await analyzeProfileImage(imgData, type);
-                console.log('Analysis result:', info);
-
-                if (info) {
-                    // Auto-fill form fields immediately (OVERWRITE mode)
-                    autoFillFormFields(info, type, imgData);
-                    previewItem.classList.remove('analyzing');
-                    previewItem.classList.add('done');
-                    showStatusMessage(previewItem, '✓ 抽出完了！');
-                    success = true;
-                }
-            } catch (error) {
-                console.error(`Auto-analyze error (attempt ${retryCount + 1}):`, error);
-                retryCount++;
-
-                if (retryCount >= maxRetries) {
-                    previewItem.classList.remove('analyzing');
-                    previewItem.classList.add('error');
-                    showStatusMessage(previewItem, 'API制限中 - 後で再試行');
-                }
-            }
-        }
-    }
-
-    // Hide global loading indicator
-    elements.loadingIndicator.style.display = 'none';
-}
-
-// Sleep utility
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Show status message on preview item
-function showStatusMessage(item, message) {
-    let statusEl = item.querySelector('.preview-status');
-    if (!statusEl) {
-        statusEl = document.createElement('div');
-        statusEl.className = 'preview-status';
-        item.appendChild(statusEl);
-    }
-    statusEl.textContent = message;
-}
-
-// Read file as data URL (Promise wrapper)
-function readFileAsDataURL(file) {
-    return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
+        reader.onload = (e) => {
+            const imageData = e.target.result;
+            screenshotData[type].push(imageData);
+
+            const preview = document.createElement('div');
+            preview.className = 'preview-item';
+            preview.innerHTML = `
+                <img src="${imageData}" alt="Screenshot">
+                <button class="remove-btn" onclick="removeScreenshot('${type}', ${screenshotData[type].length - 1}, this)">✕</button>
+            `;
+            previewContainer.appendChild(preview);
+
+            // Auto-analyze on upload
+            analyzeScreenshot(imageData, type);
+        };
         reader.readAsDataURL(file);
     });
 }
 
-// Auto-fill form fields based on extracted info (OVERWRITE mode)
-function autoFillFormFields(info, type, imgData) {
-    console.log('Auto-filling fields with info:', info);
-
-    if (type === 'my') {
-        // Auto-fill my profile fields (OVERWRITE)
-        if (info.name) {
-            elements.myName.value = info.name;
-        }
-        if (info.age) {
-            elements.myAge.value = info.age;
-        }
-        if (info.job) {
-            elements.myJob.value = info.job;
-        }
-
-        // Build bio from hobbies and other info
-        let bioText = '';
-        if (info.hobbies) bioText += `趣味: ${info.hobbies}\n`;
-        if (info.bio) bioText += info.bio;
-        if (bioText) {
-            // Append to existing or set new
-            elements.myBio.value = elements.myBio.value
-                ? elements.myBio.value + '\n' + bioText.trim()
-                : bioText.trim();
-        }
-
-        // Set face photo as profile icon (always if face detected)
-        if (info.hasFacePhoto && imgData) {
-            elements.myImagePreview.innerHTML = `<img src="${imgData}" alt="Profile">`;
-            if (!state.myProfile) {
-                state.myProfile = {};
-            }
-            state.myProfile.photo = imgData;
-        }
-
-    } else {
-        // Auto-fill girl profile fields (OVERWRITE)
-        if (info.name) {
-            elements.girlName.value = info.name;
-        }
-        if (info.age) {
-            elements.girlAge.value = info.age;
-        }
-
-        // Build features from job, hobbies, and other info
-        let featuresText = '';
-        if (info.job) featuresText += `職業: ${info.job}\n`;
-        if (info.hobbies) featuresText += `趣味: ${info.hobbies}\n`;
-        if (info.features) featuresText += info.features;
-        if (featuresText) {
-            // Append to existing or set new
-            elements.girlFeatures.value = elements.girlFeatures.value
-                ? elements.girlFeatures.value + '\n' + featuresText.trim()
-                : featuresText.trim();
-        }
-
-        // Add conversation history
-        if (info.history) {
-            elements.girlHistory.value = elements.girlHistory.value
-                ? elements.girlHistory.value + '\n' + info.history
-                : info.history;
-        }
-
-        // Set face photo as girl's profile icon (always if face detected)
-        if (info.hasFacePhoto && imgData) {
-            elements.girlImagePreview.innerHTML = `<img src="${imgData}" alt="Girl">`;
-            state.girls[state.activeTab].photo = imgData;
-        }
-
-        // Save updated girl data
-        saveCurrentGirl();
-    }
-
-    console.log('Fields updated successfully');
-}
-
-// Add screenshot preview
-function addScreenshotPreview(imgData, container, type) {
-    const index = screenshotData[type].length - 1;
-    const item = document.createElement('div');
-    item.className = 'screenshot-preview-item';
-    item.dataset.index = index;
-    item.innerHTML = `
-        <img src="${imgData}" alt="Screenshot">
-        <button class="remove-btn" onclick="removeScreenshot(${index}, '${type}', this.parentElement)">×</button>
-    `;
-    container.appendChild(item);
-    return item;  // Return the element for status tracking
-}
-
-// Remove screenshot
-window.removeScreenshot = function (index, type, element) {
-    screenshotData[type][index] = null; // Mark as removed
-    element.remove();
-
-    // Hide analyze button if no screenshots left
-    const remaining = screenshotData[type].filter(s => s !== null).length;
-    const analyzeBtn = type === 'my' ? elements.analyzeMyScreenshotsBtn : elements.analyzeGirlScreenshotsBtn;
-    if (remaining === 0) {
-        analyzeBtn.style.display = 'none';
-    }
+window.removeScreenshot = function (type, index, btn) {
+    screenshotData[type].splice(index, 1);
+    btn.parentElement.remove();
 };
 
-// Analyze all screenshots
-async function analyzeAllScreenshots(type, previewContainer, analyzeBtn) {
-    const screenshots = screenshotData[type].filter(s => s !== null);
-    if (screenshots.length === 0) return;
+// ============================================
+// Gemini Vision API - Screenshot Analysis
+// ============================================
 
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = '解析中...';
+async function analyzeScreenshot(imageData, type) {
+    const resultElement = type === 'my' ? elements.myAnalysisResult :
+        type === 'girl' ? elements.girlAnalysisResult : null;
 
-    // Mark all previews as analyzing
-    const items = previewContainer.querySelectorAll('.screenshot-preview-item');
-    items.forEach(item => item.classList.add('analyzing'));
-
-    let combinedInfo = {
-        name: null,
-        age: null,
-        job: null,
-        bio: '',
-        features: '',
-        history: ''
-    };
-
-    // Analyze each screenshot
-    for (let i = 0; i < screenshots.length; i++) {
-        try {
-            const info = await analyzeProfileImage(screenshots[i], type);
-            if (info) {
-                // Merge info (first non-null value wins for single fields)
-                if (info.name && !combinedInfo.name) combinedInfo.name = info.name;
-                if (info.age && !combinedInfo.age) combinedInfo.age = info.age;
-                if (info.job && !combinedInfo.job) combinedInfo.job = info.job;
-
-                // Append for text fields
-                if (info.bio) combinedInfo.bio += (combinedInfo.bio ? '\n' : '') + info.bio;
-                if (info.features) combinedInfo.features += (combinedInfo.features ? '\n' : '') + info.features;
-                if (info.history) combinedInfo.history += (combinedInfo.history ? '\n' : '') + info.history;
-            }
-
-            // Mark this item as done
-            if (items[i]) {
-                items[i].classList.remove('analyzing');
-                items[i].classList.add('done');
-            }
-        } catch (error) {
-            console.error(`Error analyzing screenshot ${i}:`, error);
-            if (items[i]) {
-                items[i].classList.remove('analyzing');
-            }
-        }
+    if (resultElement) {
+        resultElement.innerHTML = '<div class="loading"><div class="spinner"></div>解析中...</div>';
+        resultElement.classList.add('show', 'loading');
     }
 
-    // Apply extracted info to form
-    if (type === 'my') {
-        if (combinedInfo.name && !elements.myName.value) elements.myName.value = combinedInfo.name;
-        if (combinedInfo.age && !elements.myAge.value) elements.myAge.value = combinedInfo.age;
-        if (combinedInfo.job && !elements.myJob.value) elements.myJob.value = combinedInfo.job;
-        if (combinedInfo.bio) {
-            elements.myBio.value = (elements.myBio.value ? elements.myBio.value + '\n' : '') + combinedInfo.bio;
+    const prompt = type === 'my'
+        ? 'このマッチングアプリのプロフィール画面から、この人の性格、趣味、特徴を分析してください。箇条書きで簡潔に。'
+        : 'このマッチングアプリのプロフィール画面から、この女性の性格、趣味、特徴、好みそうな話題を分析してください。箇条書きで簡潔に。';
+
+    try {
+        const result = await callGeminiVision(imageData, prompt);
+
+        if (resultElement) {
+            resultElement.innerHTML = `<strong>✅ 解析結果:</strong><br>${result.replace(/\n/g, '<br>')}`;
+            resultElement.classList.remove('loading');
         }
-    } else {
-        if (combinedInfo.name && !elements.girlName.value) elements.girlName.value = combinedInfo.name;
-        if (combinedInfo.age && !elements.girlAge.value) elements.girlAge.value = combinedInfo.age;
-        if (combinedInfo.features) {
-            elements.girlFeatures.value = (elements.girlFeatures.value ? elements.girlFeatures.value + '\n' : '') + combinedInfo.features;
+
+        if (type === 'my') {
+            appState.myProfile.attributes = result;
+        } else if (type === 'girl') {
+            tempGirlData.attributes = result;
         }
-        if (combinedInfo.history) {
-            elements.girlHistory.value = (elements.girlHistory.value ? elements.girlHistory.value + '\n' : '') + combinedInfo.history;
+
+        // Extract photo if present
+        if (type === 'girl' && !tempGirlData.photo) {
+            tempGirlData.photo = imageData;
         }
-        saveCurrentGirl();
+
+    } catch (error) {
+        console.error('Analysis error:', error);
+        if (resultElement) {
+            resultElement.innerHTML = '⚠️ 解析に失敗しました';
+            resultElement.classList.remove('loading');
+        }
     }
-
-    // Reset button
-    analyzeBtn.disabled = false;
-    analyzeBtn.textContent = '🔍 スクショを解析して情報を抽出';
-
-    // Show success message
-    alert('スクリーンショットの解析が完了しました！\n抽出した情報が自動入力されました。');
-
-    // Clear screenshots
-    screenshotData[type] = [];
-    previewContainer.innerHTML = '';
-    analyzeBtn.style.display = 'none';
 }
+
+async function callGeminiVision(imageData, prompt) {
+    const base64Data = imageData.split(',')[1];
+    const mimeType = imageData.split(';')[0].split(':')[1];
+
+    const response = await fetch(`${GEMINI_VISION_URL}?key=${getApiKey()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{
+                parts: [
+                    { text: prompt },
+                    { inline_data: { mime_type: mimeType, data: base64Data } }
+                ]
+            }]
+        })
+    });
+
+    if (!response.ok) throw new Error('Vision API failed');
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '解析結果なし';
+}
+
+// ============================================
+// Message Generation
+// ============================================
+
+async function generateResponses() {
+    const message = elements.receivedMessage.value.trim();
+    if (!message) {
+        alert('相手からのメッセージを入力してください');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const result = await callGeminiForReplies(message);
+        displaySuggestions(result);
+    } catch (error) {
+        console.error('Generation error:', error);
+        displayFallbackSuggestions();
+    } finally {
+        hideLoading();
+    }
+}
+
+async function callGeminiForReplies(message) {
+    const girl = appState.girls[appState.selectedGirlIndex];
+    const planDesc = getPlanDescription();
+
+    const prompt = buildPrompt(message, girl, planDesc);
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${getApiKey()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.9,
+                maxOutputTokens: 2000
+            }
+        })
+    });
+
+    if (!response.ok) throw new Error('API failed');
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    return parseResponses(text);
+}
+
+function buildPrompt(message, girl, planDesc) {
+    return `あなたはマッチングアプリのメッセージアドバイザーです。
+以下の情報を元に、6種類の返信候補を生成してください。
+
+【自分の情報】
+名前: ${appState.myProfile.name}
+年齢: ${appState.myProfile.age}歳
+職業: ${appState.myProfile.job}
+特徴: ${appState.myProfile.attributes || appState.myProfile.memo}
+
+【相手の情報】
+名前: ${girl.name}
+メモ: ${girl.memo}
+属性: ${girl.attributes}
+
+【目標プラン】
+${planDesc}
+
+【相手からのメッセージ】
+「${message}」
+
+【重要ルール】
+- 返信は1〜2行の短文
+- 絵文字は1-2個まで
+- 追撃LINE禁止
+- 自然体で友達感覚
+
+【ホストLINE例パターン】
+- お礼: 「今日ありがとう♡ 楽しかった」
+- カジュアル: 「おぉ！よしゃ♡」「かしこまり」
+- 応援: 「無理せずね( ^ω^ )」
+- 軽いノリ: 「ww それな😂」
+
+出力形式（必ずこの形式で）:
+===HOST1===
+[ホストLINE風の返信1]
+===HOST2===
+[ホストLINE風の返信2]
+===HOST3===
+[ホストLINE風の返信3]
+===STRATEGY1===
+[戦略的な返信1 - Push&Pull を使用]
+===STRATEGY2===
+[戦略的な返信2 - あっさり戦略を使用]
+===ATTRIBUTE===
+[相手の属性に合わせたパーソナライズ返信]`;
+}
+
+function parseResponses(text) {
+    const responses = [];
+
+    const patterns = [
+        { regex: /===HOST1===\s*\n?([\s\S]*?)(?====|$)/, category: 'host', label: 'ホストLINE①' },
+        { regex: /===HOST2===\s*\n?([\s\S]*?)(?====|$)/, category: 'host', label: 'ホストLINE②' },
+        { regex: /===HOST3===\s*\n?([\s\S]*?)(?====|$)/, category: 'host', label: 'ホストLINE③' },
+        { regex: /===STRATEGY1===\s*\n?([\s\S]*?)(?====|$)/, category: 'strategy', label: '戦略 (Push&Pull)' },
+        { regex: /===STRATEGY2===\s*\n?([\s\S]*?)(?====|$)/, category: 'strategy', label: '戦略 (あっさり)' },
+        { regex: /===ATTRIBUTE===\s*\n?([\s\S]*?)(?====|$)/, category: 'attribute', label: '属性分析' }
+    ];
+
+    patterns.forEach(p => {
+        const match = text.match(p.regex);
+        if (match) {
+            responses.push({
+                text: match[1].trim(),
+                category: p.category,
+                label: p.label
+            });
+        }
+    });
+
+    // Fallback if parsing failed
+    if (responses.length < 6) {
+        const lines = text.split('\n').filter(l => l.trim() && !l.includes('==='));
+        while (responses.length < 6 && lines.length > 0) {
+            responses.push({
+                text: lines.shift().trim(),
+                category: 'host',
+                label: `返信候補${responses.length + 1}`
+            });
+        }
+    }
+
+    return responses;
+}
+
+function displaySuggestions(responses) {
+    elements.suggestionsList.innerHTML = '';
+
+    responses.forEach((response, index) => {
+        const card = document.createElement('div');
+        card.className = 'suggestion-card';
+        card.innerHTML = `
+            <div class="suggestion-category ${response.category}">${response.label}</div>
+            <div class="suggestion-text">${response.text}</div>
+            <div class="suggestion-actions">
+                <button class="btn-copy" onclick="copyToClipboard(this, \`${response.text.replace(/`/g, '\\`')}\`)">
+                    📋 コピー
+                </button>
+            </div>
+        `;
+        elements.suggestionsList.appendChild(card);
+    });
+}
+
+function displayFallbackSuggestions() {
+    const fallbacks = [
+        { text: 'そうなんだ！いいね😊', category: 'host', label: 'ホストLINE①' },
+        { text: 'わかる〜！笑', category: 'host', label: 'ホストLINE②' },
+        { text: 'それな！', category: 'host', label: 'ホストLINE③' },
+        { text: 'めっちゃ気になる！今度教えて？', category: 'strategy', label: '戦略 (Push&Pull)' },
+        { text: 'いいね', category: 'strategy', label: '戦略 (あっさり)' },
+        { text: '楽しそう！', category: 'attribute', label: '属性分析' }
+    ];
+    displaySuggestions(fallbacks);
+}
+
+// ============================================
+// Chat Screenshot Analysis
+// ============================================
+
+async function analyzeChatAndGenerate() {
+    if (screenshotData.chat.length === 0) {
+        alert('トーク画面のスクショをアップロードしてください');
+        return;
+    }
+
+    const imageData = screenshotData.chat[screenshotData.chat.length - 1];
+
+    showLoading();
+    hideModal(elements.cameraModal);
+
+    try {
+        // First, analyze the chat screenshot
+        const chatAnalysis = await callGeminiVision(imageData,
+            '「このLINEのトーク画面を分析して、1) 会話の流れ、2) 相手(女性)の最後のメッセージ、3) 相手の現在の気持ち・温度感を教えてください。」');
+
+        // Then generate replies based on analysis
+        elements.receivedMessage.value = `[トーク画面解析結果]\n${chatAnalysis}`;
+
+        const result = await callGeminiForReplies(chatAnalysis);
+        displaySuggestions(result);
+
+    } catch (error) {
+        console.error('Chat analysis error:', error);
+        displayFallbackSuggestions();
+    } finally {
+        hideLoading();
+        screenshotData.chat = [];
+        elements.chatScreenshotPreviews.innerHTML = '';
+        elements.analyzeChatBtn.style.display = 'none';
+    }
+}
+
+// ============================================
+// Utility Functions
+// ============================================
+
+function showModal(modal) {
+    modal.style.display = 'flex';
+}
+
+function hideModal(modal) {
+    modal.style.display = 'none';
+}
+
+function showLoading() {
+    elements.loadingIndicator.style.display = 'block';
+    elements.suggestionsList.innerHTML = '';
+}
+
+function hideLoading() {
+    elements.loadingIndicator.style.display = 'none';
+}
+
+window.copyToClipboard = function (button, text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ コピーしました';
+        button.classList.add('copied');
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('copied');
+        }, 2000);
+    });
+};
+
+// Make analyze button visible when screenshot added
+const originalHandleFiles = handleFiles;
+handleFiles = function (files, previewContainer, type) {
+    originalHandleFiles(files, previewContainer, type);
+    if (type === 'chat' && files.length > 0) {
+        elements.analyzeChatBtn.style.display = 'block';
+    }
+};

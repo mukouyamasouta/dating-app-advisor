@@ -12,28 +12,36 @@
 
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <h1>💬 メッセージアドバイザー</h1>
-            <p class="subtitle">マッチングアプリ返信サポート</p>
-        </header>
+        <!-- ========================================= -->
+        <!-- 画面1: 初期画面 - 個人プロフィール作成 -->
+        <!-- ========================================= -->
+        <div id="setupScreen" class="screen setup-screen">
+            <div class="setup-container glass-card">
+                <div class="setup-header">
+                    <h1>💬 メッセージアドバイザー</h1>
+                    <p class="subtitle">はじめにあなたのプロフィールを作成してください</p>
+                </div>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Setup Modal (First Time) -->
-            <div id="setupModal" class="modal">
-                <div class="modal-content glass-card">
-                    <h2>🎯 はじめましょう</h2>
-                    <p>まずはあなたのプロフィールを設定してください</p>
+                <div class="setup-content">
+                    <!-- APIキー入力 -->
+                    <div class="form-group api-key-section">
+                        <label>🔑 Gemini APIキー <span class="required">*</span></label>
+                        <input type="password" id="apiKeyInput" placeholder="AIza..." class="input-field">
+                        <p class="hint">
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>から取得
+                        </p>
+                    </div>
 
-                    <div class="profile-upload-area" id="myProfileUpload">
-                        <div class="image-preview" id="myImagePreview">
-                            <span class="upload-icon">📸</span>
-                            <span class="upload-text">写真をアップロード</span>
+                    <!-- プロフィール写真 -->
+                    <div class="profile-photo-upload" id="myPhotoUploadArea">
+                        <div class="photo-preview" id="myPhotoPreview">
+                            <span class="photo-icon">📸</span>
+                            <span class="photo-text">写真を追加</span>
                         </div>
                         <input type="file" id="myPhotoInput" accept="image/*" hidden>
                     </div>
 
+                    <!-- 基本情報入力 -->
                     <div class="form-group">
                         <input type="text" id="myName" placeholder="あなたの名前" class="input-field">
                     </div>
@@ -41,154 +49,273 @@
                         <input type="number" id="myAge" placeholder="年齢" class="input-field small">
                         <input type="text" id="myJob" placeholder="職業" class="input-field">
                     </div>
+
+                    <!-- メモ欄 -->
                     <div class="form-group">
-                        <textarea id="myBio" placeholder="自己紹介・特徴（例：趣味、性格など）" class="input-field textarea"></textarea>
+                        <textarea id="myMemo" placeholder="メモ（追加情報、性格、アピールポイントなど）"
+                            class="input-field textarea"></textarea>
                     </div>
 
-                    <!-- Screenshot Upload Area -->
-                    <div class="screenshot-upload-section">
-                        <h4>📷 スクリーンショットから自動読み取り</h4>
-                        <p class="upload-hint">プロフィール画面のスクショをドロップまたはクリック（複数枚OK）</p>
+                    <!-- スクリーンショット解析 -->
+                    <div class="screenshot-section">
+                        <h4>📱 アプリプロフィールのスクショで解析</h4>
+                        <p class="hint">マッチングアプリのプロフィール画面をドロップ</p>
                         <div class="screenshot-dropzone" id="myScreenshotDropzone">
                             <div class="dropzone-content">
-                                <span class="dropzone-icon">📱</span>
-                                <span class="dropzone-text">スクショをここにドロップ</span>
+                                <span class="dropzone-icon">📷</span>
+                                <span class="dropzone-text">スクショをドロップまたはタップ</span>
                             </div>
                             <input type="file" id="myScreenshotInput" accept="image/*" multiple hidden>
                         </div>
-                        <div class="screenshot-preview-list" id="myScreenshotPreviews"></div>
-                        <button type="button" id="analyzeMyScreenshotsBtn" class="btn-secondary" style="display: none;">
-                            🔍 スクショを解析して情報を抽出
-                        </button>
+                        <div class="screenshot-previews" id="myScreenshotPreviews"></div>
+                        <div class="analysis-result" id="myAnalysisResult"></div>
                     </div>
 
-                    <button id="saveProfileBtn" class="btn-primary">💾 プロフィールを保存してはじめる</button>
+                    <button id="saveProfileBtn" class="btn-primary btn-large">
+                        💾 保存して始める
+                    </button>
                 </div>
             </div>
+        </div>
 
-            <!-- Left Panel: My Profile -->
-            <aside class="profile-panel glass-card">
-                <div class="panel-header">
-                    <h3>👤 あなたのプロフィール</h3>
-                    <button id="editProfileBtn" class="btn-icon" title="編集">✏️</button>
+        <!-- ========================================= -->
+        <!-- 画面2: メイン画面 -->
+        <!-- ========================================= -->
+        <div id="mainScreen" class="screen main-screen" style="display: none;">
+            <!-- 左サイドバー: 女の子リスト -->
+            <aside class="sidebar left-sidebar">
+                <div class="sidebar-header">
+                    <h3>👩 女の子リスト</h3>
+                    <button id="addGirlBtn" class="btn-add" title="追加">
+                        <span>+</span>
+                    </button>
                 </div>
-                <div class="my-profile-display">
-                    <div class="profile-image" id="myProfileImage">
-                        <span>📷</span>
-                    </div>
-                    <div class="profile-info">
-                        <h4 id="displayMyName">未設定</h4>
-                        <p id="displayMyDetails">-</p>
-                        <p id="displayMyBio" class="bio-text">-</p>
+                <div class="girl-list" id="girlList">
+                    <!-- 女の子タブがここに追加される -->
+                    <div class="empty-list-message" id="emptyListMessage">
+                        <p>「+」ボタンで女の子を追加してください</p>
                     </div>
                 </div>
             </aside>
 
-            <!-- Center: Main Chat Area -->
-            <section class="chat-section">
-                <!-- Girl Tabs -->
-                <div class="tabs-container">
-                    <div class="tabs-scroll" id="girlTabs">
-                        <!-- Tabs will be dynamically generated -->
+            <!-- メインコンテンツエリア -->
+            <main class="main-content" id="mainContent">
+                <!-- 女の子未選択時のメッセージ -->
+                <div class="no-selection" id="noSelectionView">
+                    <div class="no-selection-content">
+                        <span class="no-selection-icon">💌</span>
+                        <h2>女の子を選択してください</h2>
+                        <p>左のリストから女の子を選択するか、「+」で新しく追加してください</p>
                     </div>
-                    <button id="addTabBtn" class="btn-add-tab" title="タブを追加">+</button>
                 </div>
 
-                <!-- Girl Profile Panel -->
-                <div class="girl-profile-panel glass-card">
-                    <div class="girl-profile-header">
-                        <div class="girl-image-upload" id="girlImageUpload">
-                            <div class="girl-image-preview" id="girlImagePreview">
-                                <span class="upload-icon">👩</span>
-                            </div>
-                            <input type="file" id="girlPhotoInput" accept="image/*" hidden>
+                <!-- 女の子追加フォーム -->
+                <div class="girl-form-view" id="girlFormView" style="display: none;">
+                    <div class="girl-form-container glass-card">
+                        <div class="form-header">
+                            <h2 id="girlFormTitle">👩 新しい女の子を追加</h2>
+                            <button class="btn-close" id="cancelAddGirlBtn">✕</button>
                         </div>
-                        <div class="girl-info-inputs">
-                            <input type="text" id="girlName" placeholder="相手の名前" class="input-field">
-                            <div class="form-row">
-                                <input type="number" id="girlAge" placeholder="年齢" class="input-field small">
-                                <input type="text" id="girlFeatures" placeholder="特徴・メモ" class="input-field">
+
+                        <div class="form-content">
+                            <!-- 名前 -->
+                            <div class="form-group">
+                                <label>名前 <span class="required">*</span></label>
+                                <input type="text" id="girlName" placeholder="女の子の名前" class="input-field">
+                            </div>
+
+                            <!-- メモ -->
+                            <div class="form-group">
+                                <label>メモ</label>
+                                <textarea id="girlMemo" placeholder="特徴、趣味、話した内容など"
+                                    class="input-field textarea"></textarea>
+                            </div>
+
+                            <!-- スクリーンショット解析 -->
+                            <div class="screenshot-section">
+                                <h4>📱 スクリーンショットで属性解析</h4>
+                                <p class="hint">プロフィール画面のスクショで自動分析</p>
+                                <div class="screenshot-dropzone" id="girlScreenshotDropzone">
+                                    <div class="dropzone-content">
+                                        <span class="dropzone-icon">📷</span>
+                                        <span class="dropzone-text">スクショをドロップまたはタップ</span>
+                                    </div>
+                                    <input type="file" id="girlScreenshotInput" accept="image/*" multiple hidden>
+                                </div>
+                                <div class="screenshot-previews" id="girlScreenshotPreviews"></div>
+                                <div class="analysis-result" id="girlAnalysisResult"></div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button id="saveGirlBtn" class="btn-primary">💾 追加する</button>
                             </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <textarea id="girlHistory" placeholder="これまでの会話の要約（例：趣味の話で盛り上がった、週末の予定を聞いたなど）"
-                            class="input-field textarea small"></textarea>
+                </div>
+
+                <!-- メッセージ画面 (女の子選択後) -->
+                <div class="message-view" id="messageView" style="display: none;">
+                    <!-- 女の子情報ヘッダー -->
+                    <div class="girl-header glass-card">
+                        <div class="girl-info">
+                            <div class="girl-avatar" id="selectedGirlAvatar">👩</div>
+                            <div class="girl-details">
+                                <h2 id="selectedGirlName">-</h2>
+                                <p id="selectedGirlMemo" class="girl-memo-preview">-</p>
+                            </div>
+                        </div>
+                        <div class="girl-actions">
+                            <button class="btn-icon" id="editGirlBtn" title="編集">✏️</button>
+                            <button class="btn-icon btn-danger" id="deleteGirlBtn" title="削除">🗑️</button>
+                        </div>
                     </div>
 
-                    <!-- Screenshot Upload Area for Girl -->
-                    <div class="screenshot-upload-section">
-                        <h4>📷 スクリーンショットから自動読み取り</h4>
-                        <p class="upload-hint">相手のプロフィールやトーク画面のスクショ（複数枚OK）</p>
-                        <div class="screenshot-dropzone" id="girlScreenshotDropzone">
-                            <div class="dropzone-content">
-                                <span class="dropzone-icon">📱</span>
-                                <span class="dropzone-text">スクショをここにドロップ</span>
-                            </div>
-                            <input type="file" id="girlScreenshotInput" accept="image/*" multiple hidden>
+                    <!-- プラン選択 -->
+                    <div class="plan-section glass-card">
+                        <h4>🎯 プランを選択</h4>
+                        <div class="plan-buttons">
+                            <button class="plan-btn" data-plan="quick">
+                                <span class="plan-icon">🚀</span>
+                                <span class="plan-text">最速で会う</span>
+                            </button>
+                            <button class="plan-btn" data-plan="phone">
+                                <span class="plan-icon">📞</span>
+                                <span class="plan-text">電話に誘う</span>
+                            </button>
+                            <button class="plan-btn" data-plan="slow">
+                                <span class="plan-icon">🌸</span>
+                                <span class="plan-text">ゆっくり仲良く</span>
+                            </button>
+                            <button class="plan-btn" data-plan="custom">
+                                <span class="plan-icon">✍️</span>
+                                <span class="plan-text">カスタム</span>
+                            </button>
                         </div>
-                        <div class="screenshot-preview-list" id="girlScreenshotPreviews"></div>
-                        <button type="button" id="analyzeGirlScreenshotsBtn" class="btn-secondary"
-                            style="display: none;">
-                            🔍 スクショを解析して情報を抽出
+                        <div class="custom-plan-input" id="customPlanInput" style="display: none;">
+                            <textarea id="customPlanText" placeholder="どのように進めたいか記入してください"
+                                class="input-field textarea"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- メッセージ入力 -->
+                    <div class="message-input-section glass-card">
+                        <div class="message-input-header">
+                            <h4>📩 相手からのメッセージ</h4>
+                            <button class="btn-camera" id="cameraBtn" title="トーク画面をスクショで解析">
+                                📷
+                            </button>
+                        </div>
+                        <textarea id="receivedMessage" placeholder="相手から受け取ったメッセージを入力..."
+                            class="input-field textarea"></textarea>
+                        <button id="generateBtn" class="btn-primary btn-generate">
+                            <span class="btn-icon">✨</span>
+                            返信候補を生成
                         </button>
                     </div>
-                </div>
 
-                <!-- First Message Generator -->
-                <div class="first-message-section glass-card">
-                    <h4>🎯 マッチ後の初手メッセージを考える</h4>
-                    <p class="section-hint">相手の情報を入力した後、最初に送るメッセージを生成します</p>
-                    <button id="generateFirstMsgBtn" class="btn-primary btn-first-msg">
-                        <span class="btn-icon">💌</span>
-                        初手メッセージを生成
-                    </button>
-                    <div id="firstMessageResult" class="first-message-result" style="display: none;">
-                        <h5>📝 おすすめ初手メッセージ</h5>
-                        <div id="firstMessageText" class="first-message-text"></div>
-                        <button class="btn-copy-first" onclick="copyFirstMessage()">📋 コピー</button>
+                    <!-- カメラモーダル（トーク画面解析） -->
+                    <div class="camera-modal" id="cameraModal" style="display: none;">
+                        <div class="camera-modal-content glass-card">
+                            <div class="modal-header">
+                                <h3>📱 トーク画面を解析</h3>
+                                <button class="btn-close" id="closeCameraModal">✕</button>
+                            </div>
+                            <div class="screenshot-dropzone" id="chatScreenshotDropzone">
+                                <div class="dropzone-content">
+                                    <span class="dropzone-icon">📷</span>
+                                    <span class="dropzone-text">トーク画面のスクショをドロップ</span>
+                                </div>
+                                <input type="file" id="chatScreenshotInput" accept="image/*" hidden>
+                            </div>
+                            <div class="screenshot-previews" id="chatScreenshotPreviews"></div>
+                            <button id="analyzeChatBtn" class="btn-primary" style="display: none;">
+                                🔍 解析して返信を生成
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 返信候補表示 -->
+                    <div class="suggestions-section" id="suggestionsSection">
+                        <h4>💡 返信候補（6種類）</h4>
+                        <div class="loading" id="loadingIndicator" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>考え中...</p>
+                        </div>
+                        <div class="suggestions-grid" id="suggestionsList">
+                            <!-- 返信候補がここに表示される -->
+                        </div>
                     </div>
                 </div>
+            </main>
 
-                <!-- Message Input -->
-                <div class="message-input-section glass-card">
-                    <h4>📩 相手からのメッセージ</h4>
-                    <textarea id="receivedMessage" placeholder="相手から受け取ったメッセージを入力..."
-                        class="input-field textarea"></textarea>
-                    <button id="generateBtn" class="btn-primary btn-generate">
-                        <span class="btn-icon">✨</span>
-                        返信候補を生成
-                    </button>
+            <!-- 右上: プロフィール編集タブ -->
+            <div class="profile-edit-tab" id="profileEditTab">
+                <button class="profile-tab-btn" id="openProfileEditBtn" title="プロフィール編集">
+                    <span class="avatar" id="myAvatarSmall">👤</span>
+                    <span class="name" id="myNameSmall">プロフィール</span>
+                </button>
+            </div>
+
+            <!-- プロフィール編集モーダル -->
+            <div class="profile-modal" id="profileEditModal" style="display: none;">
+                <div class="profile-modal-content glass-card">
+                    <div class="modal-header">
+                        <h3>👤 プロフィール編集</h3>
+                        <button class="btn-close" id="closeProfileModal">✕</button>
+                    </div>
+                    <div class="profile-edit-form">
+                        <!-- APIキー -->
+                        <div class="form-group">
+                            <label>🔑 APIキー</label>
+                            <input type="password" id="editApiKey" placeholder="AIza..." class="input-field">
+                        </div>
+                        <div class="profile-photo-upload" id="editPhotoUploadArea">
+                            <div class="photo-preview" id="editPhotoPreview">
+                                <span class="photo-icon">📸</span>
+                            </div>
+                            <input type="file" id="editPhotoInput" accept="image/*" hidden>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="editMyName" placeholder="名前" class="input-field">
+                        </div>
+                        <div class="form-row">
+                            <input type="number" id="editMyAge" placeholder="年齢" class="input-field small">
+                            <input type="text" id="editMyJob" placeholder="職業" class="input-field">
+                        </div>
+                        <div class="form-group">
+                            <textarea id="editMyMemo" placeholder="メモ" class="input-field textarea"></textarea>
+                        </div>
+                        <button id="updateProfileBtn" class="btn-primary">💾 更新する</button>
+                    </div>
                 </div>
+            </div>
 
-                <!-- Response Suggestions -->
-                <div class="suggestions-section" id="suggestionsSection">
-                    <h4>💡 おすすめ返信</h4>
-                    <div class="loading" id="loadingIndicator" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>考え中...</p>
+            <!-- 女の子編集モーダル -->
+            <div class="girl-edit-modal" id="girlEditModal" style="display: none;">
+                <div class="girl-edit-modal-content glass-card">
+                    <div class="modal-header">
+                        <h3>👩 女の子を編集</h3>
+                        <button class="btn-close" id="closeGirlEditModal">✕</button>
                     </div>
-
-                    <!-- Category Tabs -->
-                    <div class="suggestion-categories" id="suggestionCategories" style="display: none;">
-                        <button class="category-tab active" data-category="all">すべて</button>
-                        <button class="category-tab" data-category="pdf1">PDF1基盤</button>
-                        <button class="category-tab" data-category="pdf2">PDF2基盤</button>
-                        <button class="category-tab" data-category="types">タイプ別</button>
-                        <button class="category-tab" data-category="line">LINE例</button>
-                        <button class="category-tab" data-category="combined">統合</button>
-                    </div>
-
-                    <div class="suggestions-list" id="suggestionsList">
-                        <!-- Suggestions will be generated here -->
-                    </div>
-                    <div class="strategy-advice glass-card" id="strategyAdvice" style="display: none;">
-                        <h5>📚 戦略アドバイス</h5>
-                        <p id="adviceText"></p>
+                    <div class="form-content">
+                        <div class="form-group">
+                            <label>名前</label>
+                            <input type="text" id="editGirlName" placeholder="名前" class="input-field">
+                        </div>
+                        <div class="form-group">
+                            <label>メモ</label>
+                            <textarea id="editGirlMemo" placeholder="メモ" class="input-field textarea"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>属性情報</label>
+                            <textarea id="editGirlAttributes" placeholder="解析された属性"
+                                class="input-field textarea"></textarea>
+                        </div>
+                        <button id="updateGirlBtn" class="btn-primary">💾 更新する</button>
                     </div>
                 </div>
-            </section>
-        </main>
+            </div>
+        </div>
     </div>
 
     <script src="knowledge_base.js"></script>
