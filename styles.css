@@ -1191,17 +1191,28 @@ body {
     color: white;
 }
 
-.suggestion-category.comedy {
+.suggestion-category.pushpull {
     background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
     color: white;
 }
 
-.suggestion-category.sadistic {
+.suggestion-category.highvalue {
     background: linear-gradient(135deg, #2c3e50 0%, #9b59b6 100%);
     color: white;
 }
 
-.suggestion-category.healing {
-    background: linear-gradient(135deg, #ffc0cb 0%, #ff69b4 100%);
-    color: #333;
+.suggestion-category.closing {
+    background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+    color: white;
+}
+
+/* Strategy Explanation */
+.suggestion-strategy {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    margin-top: var(--spacing-xs);
+    border-left: 3px solid var(--primary);
 }
