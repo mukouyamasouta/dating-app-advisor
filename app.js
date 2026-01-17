@@ -913,24 +913,130 @@ async function analyzeChatAndGenerate() {
     hideModal(elements.cameraModal);
 
     try {
-        // First, analyze the chat screenshot
-        const chatAnalysis = await callGeminiVision(imageData,
-            '「このLINEのトーク画面を分析して、1) 会話の流れ、2) 相手(女性)の最後のメッセージ、3) 相手の現在の気持ち・温度感を教えてください。」');
+        // 1. 詳細なトーク画面解析（AIチャット技術）
+        const analysisPrompt = `あなたはLINEトーク画面を分析するエキスパートです。
+この画面を詳細に分析して、以下の形式で出力してください：
 
-        // Then generate replies based on analysis
-        elements.receivedMessage.value = `[トーク画面解析結果]\n${chatAnalysis}`;
+【会話の流れ】
+- 直近5-10メッセージの要約
 
-        const result = await callGeminiForReplies(chatAnalysis);
+【相手（女性）の最後のメッセージ】
+「ここに正確に転記」
+
+【相手の感情・温度感】
+- 好意度: 高/中/低
+- 現在の気分: （例：嬉しそう、疲れてる、期待してる等）
+- 返信の緊急度: 高/中/低
+
+【相手の特徴（今回の会話から）】
+- 話し方の特徴
+- 興味がありそうな話題
+- 避けた方がいい話題
+
+【推奨アプローチ】
+- この流れでの最適な返信方針`;
+
+        const chatAnalysis = await callGeminiVision(imageData, analysisPrompt);
+
+        // 2. 解析結果をメモに保存
+        const girl = appState.girls[appState.selectedGirlIndex];
+        if (girl) {
+            const timestamp = new Date().toLocaleString('ja-JP');
+            const newAnalysis = `\n\n【トーク解析 ${timestamp}】\n${chatAnalysis}`;
+            girl.memo = (girl.memo || '') + newAnalysis;
+            saveToStorage();
+
+            // UI更新
+            if (elements.selectedGirlMemo) {
+                elements.selectedGirlMemo.textContent = girl.memo.substring(0, 50) + '...';
+            }
+        }
+
+        // 3. 解析結果から女性の最後のメッセージを抽出
+        const lastMsgMatch = chatAnalysis.match(/【相手（女性）の最後のメッセージ】\s*「([^」]+)」/);
+        const lastMessage = lastMsgMatch ? lastMsgMatch[1] : chatAnalysis;
+
+        // 4. 受信メッセージ欄に表示
+        elements.receivedMessage.value = lastMessage;
+
+        // 5. 解析コンテキスト付きで返信生成
+        const contextualPrompt = `${chatAnalysis}\n\n上記の分析を踏まえて、相手の最後のメッセージ「${lastMessage}」への返信を生成してください。`;
+
+        const result = await callGeminiForRepliesWithContext(lastMessage, chatAnalysis);
         displaySuggestions(result);
 
     } catch (error) {
         console.error('Chat analysis error:', error);
+        alert('トーク解析エラー: ' + error.message);
         displayFallbackSuggestions();
     } finally {
         hideLoading();
-        screenshotData.chat = [];
-        elements.chatScreenshotPreviews.innerHTML = '';
-        elements.analyzeChatBtn.style.display = 'none';
+    }
+}
+
+// コンテキスト付き返信生成
+async function callGeminiForRepliesWithContext(message, context) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error('APIキーが設定されていません');
+    }
+
+    const girl = appState.girls[appState.selectedGirlIndex];
+    const planDesc = getPlanDescription();
+
+    const prompt = `あなたは売れっ子ホストのLINE術を完璧に習得したメッセージアドバイザーです。
+
+【トーク解析結果】
+${context}
+
+【自分の情報】
+名前: ${appState.myProfile.name}
+年齢: ${appState.myProfile.age}歳
+職業: ${appState.myProfile.job}
+
+【相手の情報】
+名前: ${girl.name}
+メモ: ${girl.memo}
+
+【目標】
+${planDesc}
+
+【相手の最後のメッセージ】
+「${message}」
+
+【実際のホストLINE例】
+■褒める: 「えら🥺」「可愛すぎる」「いい子やなあ🥰」
+■会いたい: 「てか今日あえるん？🥺」「早く会いたいなー」
+■デレ: 「すき」「はぁかわいい」
+■質問: 「今は何してるんー？」「バイトなにしてるん？😳」
+
+【6タイプで返信生成】
+===PRINCE=== 👑王子様系（全肯定・癒し）
+===HOST=== 🍷ホスト系（関西弁・🥺多用）
+===SMART=== 🎓知的系（深掘り質問）
+===COMEDY=== 🎭お笑い系（w多用）
+===SADISTIC=== 😈S系（ツンデレ）
+===HEALING=== 🌸癒し系（包容力）
+
+※返信は1-2文、最大25文字で超簡潔に`;
+
+    try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.9, maxOutputTokens: 2000 }
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || 'API失敗');
+
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        return parseResponses(text);
+    } catch (error) {
+        throw new Error(`API接続エラー: ${error.message}`);
     }
 }
 
