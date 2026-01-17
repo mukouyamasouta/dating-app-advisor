@@ -525,27 +525,82 @@ async function analyzeScreenshot(imageData, type) {
     const resultElement = type === 'my' ? elements.myAnalysisResult :
         type === 'girl' ? elements.girlAnalysisResult : null;
 
+    // Get memo element based on type
+    const memoElement = type === 'my' ? elements.myMemo :
+        type === 'girl' ? elements.girlMemo : null;
+
     if (resultElement) {
-        resultElement.innerHTML = '<div class="loading"><div class="spinner"></div>解析中...</div>';
+        resultElement.innerHTML = '<div class="loading"><div class="spinner"></div>🔍 スクリーンショットを詳細解析中...</div>';
         resultElement.classList.add('show', 'loading');
     }
 
+    // Enhanced prompts to extract all visible information
     const prompt = type === 'my'
-        ? 'このマッチングアプリのプロフィール画面から、この人の性格、趣味、特徴を分析してください。箇条書きで簡潔に。'
-        : 'このマッチングアプリのプロフィール画面から、この女性の性格、趣味、特徴、好みそうな話題を分析してください。箇条書きで簡潔に。';
+        ? `このマッチングアプリのプロフィール画面スクリーンショットから、表示されている全ての情報を抽出してください。
+
+【抽出項目】
+- 名前/ニックネーム
+- 年齢
+- 職業/仕事
+- 居住地/地域
+- 身長/体型
+- 趣味・興味
+- 自己紹介文の内容
+- 好きなもの/好み
+- 性格の特徴（文章から読み取れるもの）
+- その他プロフィールに表示されている情報
+
+※表示されていない項目は「不明」と記載
+※各項目を簡潔に箇条書きで出力`
+        : `このマッチングアプリのプロフィール画面スクリーンショットから、この女性について表示されている全ての情報を抽出してください。
+
+【抽出項目】
+- 名前/ニックネーム
+- 年齢
+- 職業/仕事
+- 居住地/地域
+- 身長/体型
+- 趣味・興味
+- 自己紹介文の内容
+- 好きなもの/タイプ
+- 性格の特徴（文章や雰囲気から読み取れるもの）
+- 好みそうな話題・アプローチ方法
+- 使っているアプリ名（わかれば）
+- その他プロフィールに表示されている情報
+
+※表示されていない項目は「不明」と記載
+※各項目を簡潔に箇条書きで出力
+※この人へのアプローチアドバイスも最後に1-2行追加`;
 
     try {
         const result = await callGeminiVision(imageData, prompt);
 
         if (resultElement) {
-            resultElement.innerHTML = `<strong>✅ 解析結果:</strong><br>${result.replace(/\n/g, '<br>')}`;
+            resultElement.innerHTML = `<strong>✅ 解析完了:</strong><br>${result.replace(/\n/g, '<br>')}`;
             resultElement.classList.remove('loading');
         }
 
+        // Save to attributes
         if (type === 'my') {
             appState.myProfile.attributes = result;
         } else if (type === 'girl') {
             tempGirlData.attributes = result;
+        }
+
+        // AUTO-POPULATE MEMO FIELD with analysis results
+        if (memoElement) {
+            // Add analysis result to memo (append if there's existing content)
+            const existingMemo = memoElement.value.trim();
+            const newContent = `【スクショ解析結果】\n${result}`;
+
+            if (existingMemo) {
+                memoElement.value = `${existingMemo}\n\n${newContent}`;
+            } else {
+                memoElement.value = newContent;
+            }
+
+            // Trigger input event for any listeners
+            memoElement.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         // Extract photo if present
@@ -556,7 +611,7 @@ async function analyzeScreenshot(imageData, type) {
     } catch (error) {
         console.error('Analysis error:', error);
         if (resultElement) {
-            resultElement.innerHTML = '⚠️ 解析に失敗しました';
+            resultElement.innerHTML = `⚠️ 解析に失敗しました: ${error.message || 'APIエラー'}`;
             resultElement.classList.remove('loading');
         }
     }
