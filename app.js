@@ -621,26 +621,49 @@ async function analyzeScreenshot(imageData, type) {
 }
 
 async function callGeminiVision(imageData, prompt) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error('APIキーが設定されていません。設定画面でAPIキーを入力してください。');
+    }
+
     const base64Data = imageData.split(',')[1];
-    const mimeType = imageData.split(';')[0].split(':')[1];
+    const mimeType = imageData.split(';')[0].split(':')[1] || 'image/jpeg';
 
-    const response = await fetch(`${GEMINI_VISION_URL}?key=${getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{
-                parts: [
-                    { text: prompt },
-                    { inline_data: { mime_type: mimeType, data: base64Data } }
-                ]
-            }]
-        })
-    });
+    console.log('Calling Gemini Vision API...');
+    console.log('API Key prefix:', apiKey.substring(0, 10) + '...');
 
-    if (!response.ok) throw new Error('Vision API failed');
+    try {
+        const response = await fetch(`${GEMINI_VISION_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: mimeType, data: base64Data } }
+                    ]
+                }]
+            })
+        });
 
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '解析結果なし';
+        const data = await response.json();
+        console.log('API Response:', data);
+
+        if (!response.ok) {
+            const errorMsg = data.error?.message || 'API呼び出しに失敗しました';
+            throw new Error(errorMsg);
+        }
+
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+            throw new Error('AIからの応答が空でした');
+        }
+
+        return text;
+    } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        throw new Error(`API接続エラー: ${fetchError.message}`);
+    }
 }
 
 // ============================================
@@ -668,29 +691,48 @@ async function generateResponses() {
 }
 
 async function callGeminiForReplies(message) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error('APIキーが設定されていません。プロフィール編集からAPIキーを設定してください。');
+    }
+
     const girl = appState.girls[appState.selectedGirlIndex];
     const planDesc = getPlanDescription();
-
     const prompt = buildPrompt(message, girl, planDesc);
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: 0.9,
-                maxOutputTokens: 2000
-            }
-        })
-    });
+    console.log('Calling Gemini API for replies...');
 
-    if (!response.ok) throw new Error('API failed');
+    try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.9,
+                    maxOutputTokens: 2000
+                }
+            })
+        });
 
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const data = await response.json();
+        console.log('API Response:', data);
 
-    return parseResponses(text);
+        if (!response.ok) {
+            const errorMsg = data.error?.message || 'API呼び出しに失敗しました';
+            throw new Error(errorMsg);
+        }
+
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!text) {
+            throw new Error('AIからの応答が空でした');
+        }
+
+        return parseResponses(text);
+    } catch (fetchError) {
+        console.error('API error:', fetchError);
+        throw new Error(`API接続エラー: ${fetchError.message}`);
+    }
 }
 
 function buildPrompt(message, girl, planDesc) {
