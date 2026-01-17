@@ -132,6 +132,9 @@ function initEventListeners() {
 
     // Add Girl
     elements.addGirlBtn.addEventListener('click', showGirlForm);
+    // Mobile Add Button
+    const mobileAddBtn = document.getElementById('mobileAddGirlBtn');
+    if (mobileAddBtn) mobileAddBtn.addEventListener('click', showGirlForm);
     elements.cancelAddGirlBtn.addEventListener('click', hideGirlForm);
     elements.saveGirlBtn.addEventListener('click', saveGirl);
     setupDropzone(elements.girlScreenshotDropzone, elements.girlScreenshotInput, elements.girlScreenshotPreviews, 'girl');

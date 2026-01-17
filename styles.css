@@ -956,17 +956,78 @@ body {
 @media (max-width: 768px) {
     .main-screen {
         grid-template-columns: 1fr;
+        padding-bottom: 70px;
     }
 
+    /* Mobile: Show sidebar as horizontal bottom bar */
     .left-sidebar {
         position: fixed;
-        left: -280px;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        width: 100%;
+        height: auto;
+        max-height: 60px;
         z-index: 200;
-        transition: var(--transition-normal);
+        border-right: none;
+        border-top: 1px solid var(--glass-border);
+        flex-direction: row;
+        overflow-x: auto;
     }
 
-    .left-sidebar.open {
-        left: 0;
+    .sidebar-header {
+        display: none;
+    }
+
+    .girl-list {
+        display: flex;
+        flex-direction: row;
+        padding: var(--spacing-xs);
+        gap: var(--spacing-xs);
+        overflow-x: auto;
+    }
+
+    .girl-tab {
+        min-width: 60px;
+        padding: var(--spacing-xs);
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .girl-tab .avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .girl-tab .name {
+        font-size: 0.65rem;
+        max-width: 50px;
+    }
+
+    .empty-list-message {
+        display: none;
+    }
+
+    /* Floating Add Button for Mobile */
+    .mobile-add-btn {
+        position: fixed;
+        bottom: 75px;
+        right: var(--spacing-md);
+        width: 56px;
+        height: 56px;
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: var(--radius-full);
+        color: white;
+        font-size: 2rem;
+        cursor: pointer;
+        z-index: 250;
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .plan-buttons {
@@ -977,21 +1038,18 @@ body {
         grid-template-columns: 1fr;
     }
 
-    /* Mobile menu button */
-    .mobile-menu-btn {
-        position: fixed;
-        bottom: var(--spacing-lg);
-        left: var(--spacing-lg);
-        width: 56px;
-        height: 56px;
-        background: var(--primary-gradient);
-        border: none;
-        border-radius: var(--radius-full);
-        color: white;
-        font-size: 1.5rem;
-        cursor: pointer;
-        z-index: 150;
-        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+    /* Hide desktop add button on mobile */
+    #addGirlBtn {
+        display: none;
+    }
+
+    .profile-edit-tab {
+        top: var(--spacing-sm);
+        right: var(--spacing-sm);
+    }
+
+    .no-selection {
+        min-height: calc(100vh - 130px);
     }
 }
 
