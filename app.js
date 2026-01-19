@@ -677,13 +677,18 @@ async function generateResponses() {
         return;
     }
 
+    console.log('=== 返信生成開始 ===');
+    console.log('入力メッセージ:', message);
+
     showLoading();
 
     try {
         const result = await callGeminiForReplies(message);
+        console.log('生成結果:', result);
         displaySuggestions(result);
     } catch (error) {
         console.error('Generation error:', error);
+        alert('エラー: ' + error.message + '\n\nフォールバック返信を表示します。');
         displayFallbackSuggestions();
     } finally {
         hideLoading();
@@ -700,7 +705,9 @@ async function callGeminiForReplies(message) {
     const planDesc = getPlanDescription();
     const prompt = buildPrompt(message, girl, planDesc);
 
-    console.log('Calling Gemini API for replies...');
+    console.log('=== API呼び出し ===');
+    console.log('送信メッセージ:', message);
+    console.log('プロンプト(最初の500文字):', prompt.substring(0, 500));
 
     try {
         const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
