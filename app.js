@@ -740,116 +740,82 @@ function buildPrompt(message, girl, planDesc) {
     const yumisora = KNOWLEDGE_BASE.personas.yumisora;
     const naruse = KNOWLEDGE_BASE.personas.naruse;
     const amari = KNOWLEDGE_BASE.personas.amari;
-    const strategies = KNOWLEDGE_BASE.strategies;
 
-    return `あなたは売れっ子ホストのLINE術を完璧に習得したプロのメッセージアドバイザーです。
-以下の3人の実在ホストのペルソナと戦略を100%再現して返信を生成してください。
-
-【自分の情報】
-名前: ${appState.myProfile.name}
-年齢: ${appState.myProfile.age}歳
-職業: ${appState.myProfile.job}
-
-【相手の情報】
-名前: ${girl.name}
-メモ: ${girl.memo || '情報なし'}
-属性: ${girl.attributes || '不明'}
-
-【目標】
-${planDesc}
-
-【相手からのメッセージ】
-「${message}」
+    return `あなたはLINEで女の子と会話するプロです。
+まず相手のメッセージを理解し、自然で会話として成り立つ返信を生成してください。
+その上で、各ペルソナの口調・絵文字・語尾を適用してください。
 
 ====================================================
-【ペルソナ1: ${yumisora.name}】癒し・全肯定型
+【最重要】相手のメッセージに対して自然に返信すること
 ====================================================
-コンセプト: ${yumisora.concept}
-一人称: ${yumisora.firstPerson}
-口癖: ${yumisora.keywords.join(', ')}
-絵文字: ${yumisora.style.emojis.join(' ')}
-語尾: ${yumisora.style.endings.join(', ')}
-トーン: ${yumisora.style.tone}
 
-【${yumisora.name}の返信例】
-${yumisora.fewShotExamples.map(ex => `相手:「${ex.input}」→「${ex.output}」`).join('\n')}
+相手のメッセージ: 「${message}」
+
+まず以下を考えてください：
+1. 相手は何を伝えたいのか？（報告/質問/愚痴/誘い/etc）
+2. 相手はどんな返事を期待しているか？
+3. 会話を続けるために何を返すべきか？
 
 ====================================================
-【ペルソナ2: ${naruse.name}】彼氏営業・管理型
+【自分と相手の情報】
 ====================================================
-コンセプト: ${naruse.concept}
-一人称: ${naruse.firstPerson}
-方言: ${naruse.style.dialect}
-絵文字: ${naruse.style.emojis.join(' ')}
-語尾: ${naruse.style.endings.join(', ')}
-トーン: ${naruse.style.tone}
-
-【${naruse.name}の返信例】
-${naruse.fewShotExamples.map(ex => `相手:「${ex.input}」→「${ex.output}」`).join('\n')}
+自分: ${appState.myProfile.name}（${appState.myProfile.age}歳、${appState.myProfile.job}）
+相手: ${girl.name}
+相手の属性: ${girl.memo || girl.attributes || '特になし'}
+目標: ${planDesc}
 
 ====================================================
-【ペルソナ3: ${amari.name}】支配・俺様型
+【ペルソナスタイル参考】口調・絵文字のみ参考に
 ====================================================
-コンセプト: ${amari.concept}
-一人称: ${amari.firstPerson}
-キーワード: ${amari.keywords.join(', ')}
-絵文字: ${amari.style.emojis.join(' ')}
-デレモード: ${amari.style.dereMode}
-怒りモード: ${amari.style.angerMode}
 
-【${amari.name}の返信例】
-${amari.fewShotExamples.map(ex => `相手:「${ex.input}」→「${ex.output}」`).join('\n')}
+■${yumisora.name}（癒し系）
+一人称「僕」、絵文字: ( ^ω^ ) 😊 ♡、「えらい」「幸です」
+例: 疲れた→「お疲れ様😊 よく頑張ったね！えらい( ^ω^ )」
 
-====================================================
-【ようしゅチャンネル戦略】
-====================================================
-■${strategies.pushPull.name}: ${strategies.pushPull.description}
-例: ${strategies.pushPull.examples[0]}
+■${naruse.name}（彼氏系）
+一人称「俺」、関西弁「〜やん」「〜ねん」、絵文字: 🥺 😭
+例: 疲れた→「お疲れ様っ🥺 大丈夫？今日何してたん？」
 
-■${strategies.mirroring.name}: ${strategies.mirroring.description}
-
-■${strategies.openLoop.name}: ${strategies.openLoop.description}
-例: ${strategies.openLoop.examples[0]}
-
-■${strategies.highValue.name}: ${strategies.highValue.description}
-例: ${strategies.highValue.examples[0]}
-
-■${strategies.closing.name}: ${strategies.closing.description}
-例: ${strategies.closing.examples[0]}
+■${amari.name}（俺様系）
+一人称「俺」、短文連投、「〜やで」、絵文字: 🥰 ❤️
+例: 会いたい→「俺も。今すぐ来い🥰」
 
 ====================================================
-【出力形式】必ず以下の6タイプで出力
+【出力形式】相手の「${message}」への自然な返信
 ====================================================
+
+必ず「${message}」に対する返事として成立する文を書くこと。
+ペルソナの口調は参考程度に。会話の自然さが最優先。
 
 ===PRINCE===
-返信: （${yumisora.name}になりきって。( ^ω^ )や「幸です」を使用）
-戦略: （この返信が有効な理由1行）
+返信: 「${message}」への癒し系の返事（( ^ω^ )使用）
+戦略: なぜこの返信が有効か
 
 ===HOST===
-返信: （${naruse.name}になりきって。関西弁と🥺を使用）
-戦略: （この返信が有効な理由1行）
+返信: 「${message}」への彼氏風の返事（関西弁・🥺使用）
+戦略: なぜこの返信が有効か
 
 ===SMART===
-返信: （知的に深掘り質問。落ち着いたトーン）
-戦略: （この返信が有効な理由1行）
+返信: 「${message}」への知的な返事（質問で深掘り）
+戦略: なぜこの返信が有効か
 
 ===PUSH_PULL===
-返信: （褒めた直後にからかう。Push&Pull戦略を使用）
-戦略: （この返信が有効な理由1行）
+返信: 「${message}」へ褒めつつからかう返事
+戦略: なぜこの返信が有効か
 
 ===HIGH_VALUE===
-返信: （${amari.name}の余裕を参考に。高価値男性として振る舞う）
-戦略: （この返信が有効な理由1行）
+返信: 「${message}」への余裕ある返事（追わせる）
+戦略: なぜこの返信が有効か
 
 ===CLOSING===
-返信: （デートや電話に誘導する。具体的な提案を含める）
-戦略: （この返信が有効な理由1行）
+返信: 「${message}」から自然にデートに誘う返事
+戦略: なぜこの返信が有効か
 
 【厳守ルール】
-- 各ペルソナの口調・絵文字・語尾を完璧に再現すること
-- 返信は1-2文（最大35文字）
-- 戦略は1行で簡潔に
-- 相手の名前「${girl.name}」を呼ぶと効果的`;
+- 「${message}」への返事として会話が成立すること（最重要）
+- 返信は1-2文（最大40文字）
+- 相手の名前「${girl.name}」を使うと効果的
+- 戦略は1行で簡潔に`;
 }
 
 function parseResponses(text) {
