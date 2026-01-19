@@ -736,88 +736,120 @@ async function callGeminiForReplies(message) {
 }
 
 function buildPrompt(message, girl, planDesc) {
-    return `あなたはマッチングアプリ攻略のプロフェッショナルです。
-売れっ子ホストのLINE術と「ようしゅチャンネル」の戦略を完璧に習得しています。
+    // Get persona details from knowledge base
+    const yumisora = KNOWLEDGE_BASE.personas.yumisora;
+    const naruse = KNOWLEDGE_BASE.personas.naruse;
+    const amari = KNOWLEDGE_BASE.personas.amari;
+    const strategies = KNOWLEDGE_BASE.strategies;
+
+    return `あなたは売れっ子ホストのLINE術を完璧に習得したプロのメッセージアドバイザーです。
+以下の3人の実在ホストのペルソナと戦略を100%再現して返信を生成してください。
 
 【自分の情報】
 名前: ${appState.myProfile.name}
 年齢: ${appState.myProfile.age}歳
 職業: ${appState.myProfile.job}
-特徴: ${appState.myProfile.attributes || appState.myProfile.memo}
 
 【相手の情報】
 名前: ${girl.name}
-メモ: ${girl.memo}
-属性: ${girl.attributes}
+メモ: ${girl.memo || '情報なし'}
+属性: ${girl.attributes || '不明'}
 
-【目標プラン】
+【目標】
 ${planDesc}
 
 【相手からのメッセージ】
 「${message}」
 
-============================
-【マッチングアプリ攻略 核心戦略】
-============================
+====================================================
+【ペルソナ1: ${yumisora.name}】癒し・全肯定型
+====================================================
+コンセプト: ${yumisora.concept}
+一人称: ${yumisora.firstPerson}
+口癖: ${yumisora.keywords.join(', ')}
+絵文字: ${yumisora.style.emojis.join(' ')}
+語尾: ${yumisora.style.endings.join(', ')}
+トーン: ${yumisora.style.tone}
 
-■Push & Pull（押して引く）
-- 褒めた直後に軽くからかう
-- 好意を見せつつ余裕を保つ
-- 例:「可愛いな...でもちょっと天然すぎん？笑」
+【${yumisora.name}の返信例】
+${yumisora.fewShotExamples.map(ex => `相手:「${ex.input}」→「${ex.output}」`).join('\n')}
 
-■ミラーリング＆ペーシング
-- 相手のテンション・絵文字量に合わせる
-- 返信速度も相手に合わせる
+====================================================
+【ペルソナ2: ${naruse.name}】彼氏営業・管理型
+====================================================
+コンセプト: ${naruse.concept}
+一人称: ${naruse.firstPerson}
+方言: ${naruse.style.dialect}
+絵文字: ${naruse.style.emojis.join(' ')}
+語尾: ${naruse.style.endings.join(', ')}
+トーン: ${naruse.style.tone}
 
-■オープンループ
-- 答えを出さず興味を引く質問
-- 「え、それってもしかして...まあいいか😏」
+【${naruse.name}の返信例】
+${naruse.fewShotExamples.map(ex => `相手:「${ex.input}」→「${ex.output}」`).join('\n')}
 
-■高価値男性ポジショニング
-- 忙しさをほのめかす
-- 誘われる側になる
-- 「来週なら空いてるかも」
+====================================================
+【ペルソナ3: ${amari.name}】支配・俺様型
+====================================================
+コンセプト: ${amari.concept}
+一人称: ${amari.firstPerson}
+キーワード: ${amari.keywords.join(', ')}
+絵文字: ${amari.style.emojis.join(' ')}
+デレモード: ${amari.style.dereMode}
+怒りモード: ${amari.style.angerMode}
 
-■ホストLINE実例
-「ええ嬉しい🥺」「可愛すぎる」「いい子やなあ🥰」
-「てか今日あえるん？🥺」「早く会いたいなー」
-「バイトしてたん！偉いぞ🥺」「何してるんー？」
-「すき」「はぁかわいい」「俺だけの○○ちゃん！」
+【${amari.name}の返信例】
+${amari.fewShotExamples.map(ex => `相手:「${ex.input}」→「${ex.output}」`).join('\n')}
 
-============================
-【出力形式】各タイプで返信文＋立ち回り解説
-============================
+====================================================
+【ようしゅチャンネル戦略】
+====================================================
+■${strategies.pushPull.name}: ${strategies.pushPull.description}
+例: ${strategies.pushPull.examples[0]}
 
-以下の6タイプそれぞれについて出力してください：
+■${strategies.mirroring.name}: ${strategies.mirroring.description}
+
+■${strategies.openLoop.name}: ${strategies.openLoop.description}
+例: ${strategies.openLoop.examples[0]}
+
+■${strategies.highValue.name}: ${strategies.highValue.description}
+例: ${strategies.highValue.examples[0]}
+
+■${strategies.closing.name}: ${strategies.closing.description}
+例: ${strategies.closing.examples[0]}
+
+====================================================
+【出力形式】必ず以下の6タイプで出力
+====================================================
 
 ===PRINCE===
-返信: （王子様系：全肯定・癒し）
-戦略: （なぜこの返信が有効か1行で）
+返信: （${yumisora.name}になりきって。( ^ω^ )や「幸です」を使用）
+戦略: （この返信が有効な理由1行）
 
 ===HOST===
-返信: （ホスト系：関西弁・🥺多用）
-戦略: （なぜこの返信が有効か1行で）
+返信: （${naruse.name}になりきって。関西弁と🥺を使用）
+戦略: （この返信が有効な理由1行）
 
 ===SMART===
-返信: （知的系：深掘り質問）
-戦略: （なぜこの返信が有効か1行で）
+返信: （知的に深掘り質問。落ち着いたトーン）
+戦略: （この返信が有効な理由1行）
 
 ===PUSH_PULL===
-返信: （Push&Pull：褒めてからかう）
-戦略: （なぜこの返信が有効か1行で）
+返信: （褒めた直後にからかう。Push&Pull戦略を使用）
+戦略: （この返信が有効な理由1行）
 
 ===HIGH_VALUE===
-返信: （高価値男性：余裕・誘われる側）
-戦略: （なぜこの返信が有効か1行で）
+返信: （${amari.name}の余裕を参考に。高価値男性として振る舞う）
+戦略: （この返信が有効な理由1行）
 
 ===CLOSING===
-返信: （クロージング：デートや連絡先誘導）
-戦略: （なぜこの返信が有効か1行で）
+返信: （デートや電話に誘導する。具体的な提案を含める）
+戦略: （この返信が有効な理由1行）
 
-【ルール】
-- 返信は1-2文（最大30文字）
+【厳守ルール】
+- 各ペルソナの口調・絵文字・語尾を完璧に再現すること
+- 返信は1-2文（最大35文字）
 - 戦略は1行で簡潔に
-- 相手の名前(${girl.name})を呼ぶと効果的`;
+- 相手の名前「${girl.name}」を呼ぶと効果的`;
 }
 
 function parseResponses(text) {
@@ -898,12 +930,12 @@ function displaySuggestions(responses) {
 
 function displayFallbackSuggestions() {
     const fallbacks = [
-        { text: 'そうなんだ！嬉しいよ😊', category: 'prince', label: '👑 王子様系' },
-        { text: '俺もめっちゃ気になってた🥺', category: 'host', label: '🍷 ホスト系' },
-        { text: 'それ興味深いね、詳しく聞かせて？', category: 'smart', label: '🎓 知的系' },
-        { text: 'それなw めっちゃわかる😂', category: 'comedy', label: '🎭 お笑い系' },
-        { text: 'へえ...まあ、悪くないんじゃない🥰', category: 'sadistic', label: '😈 S系' },
-        { text: '大変だったね。話聞くよ🌸', category: 'healing', label: '🌸 癒し系' }
+        { text: 'そうなんだ！嬉しいよ( ^ω^ ) 幸です♡', category: 'prince', label: '👑 王子様系', strategy: '全肯定で安心感を与える' },
+        { text: '俺もめっちゃ気になってた🥺 今何してるん？', category: 'host', label: '🍷 ホスト系', strategy: '関西弁と甘えで距離を縮める' },
+        { text: 'それ興味深いね、もっと詳しく聞かせて？', category: 'smart', label: '🎓 知的系', strategy: '深掘り質問で相手を主役にする' },
+        { text: '可愛いな...でもちょっと天然すぎん？笑', category: 'pushpull', label: '🎭 Push&Pull', strategy: '褒めてからかうことで緊張感を維持' },
+        { text: '来週なら空いてるかも。会いたいなら言って😏', category: 'highvalue', label: '💎 高価値男性', strategy: '余裕を見せて追わせる構図を作る' },
+        { text: '美味しいお店知ってるんやけど、今度一緒に行かへん？', category: 'closing', label: '🎯 クロージング', strategy: '具体的な提案でデートに誘導' }
     ];
     displaySuggestions(fallbacks);
 }
