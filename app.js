@@ -707,7 +707,8 @@ async function callGeminiForReplies(message) {
 
     console.log('=== API呼び出し ===');
     console.log('送信メッセージ:', message);
-    console.log('プロンプト(最初の500文字):', prompt.substring(0, 500));
+    console.log('APIキー(最初の10文字):', apiKey.substring(0, 10) + '...');
+    console.log('プロンプト(最初の300文字):', prompt.substring(0, 300));
 
     try {
         const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
@@ -716,28 +717,35 @@ async function callGeminiForReplies(message) {
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 0.9,
-                    maxOutputTokens: 2000
+                    temperature: 0.8,
+                    maxOutputTokens: 1500
                 }
             })
         });
 
+        console.log('Response status:', response.status);
         const data = await response.json();
         console.log('API Response:', data);
 
         if (!response.ok) {
-            const errorMsg = data.error?.message || 'API呼び出しに失敗しました';
+            const errorMsg = data.error?.message || `HTTP ${response.status}: API呼び出しに失敗しました`;
+            console.error('API Error Details:', data.error);
             throw new Error(errorMsg);
         }
 
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        console.log('AI応答テキスト(最初の200文字):', text.substring(0, 200));
+
         if (!text) {
             throw new Error('AIからの応答が空でした');
         }
 
         return parseResponses(text);
     } catch (fetchError) {
-        console.error('API error:', fetchError);
+        console.error('=== APIエラー詳細 ===');
+        console.error('エラー名:', fetchError.name);
+        console.error('エラーメッセージ:', fetchError.message);
+        console.error('エラー全体:', fetchError);
         throw new Error(`API接続エラー: ${fetchError.message}`);
     }
 }
